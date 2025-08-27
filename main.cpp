@@ -1,0 +1,227 @@
+#include <array>
+#include <cmath>
+#include <random>
+#include <vector>
+
+#include <GL/freeglut_std.h>
+#include <GL/gl.h>
+
+#define WIDTH 1200
+#define HEIGHT 800
+#define PI 3.14159265358979323846
+
+// random number generation setup
+static std::random_device rd;
+static std::mt19937 gen(rd());
+std::uniform_real_distribution<double> colorDist(0.0, 1.0);
+
+double playerX = 0.0;
+double playerY = -0.75;
+
+double roadWidth = 0.7;
+double carWidth = 0.16;
+double margin = (roadWidth - carWidth) / 2;
+
+double laneOffset = 0.0;
+std::vector<double> lanes;
+std::uniform_int_distribution<int> laneDist;
+
+struct EnemyCar {
+    double x, y;
+    double width, height;
+    double r, g, b;
+    bool active;
+};
+
+const int MAX_ENEMIES = 3;
+std::array<EnemyCar, MAX_ENEMIES> enemies;
+
+void initLanes() {
+    int numLanes = static_cast<int>(roadWidth / carWidth);
+    lanes.reserve(numLanes);
+    double laneSpacing = roadWidth / numLanes;
+    double startX = -roadWidth / 2 + laneSpacing / 2;
+    for (int i = 0; i < numLanes; i++) {
+        lanes.push_back(startX + i * laneSpacing);
+    }
+    laneDist = std::uniform_int_distribution<int>(0, numLanes - 1);
+}
+
+void drawRoad() {
+    // road
+    glColor3d(0.2, 0.2, 0.2);
+    glBegin(GL_QUADS);
+    glVertex2d(-roadWidth / 2, -1.0);
+    glVertex2d(roadWidth / 2, -1.0);
+    glVertex2d(roadWidth / 2, 1.0);
+    glVertex2d(-roadWidth / 2, 1.0);
+    glEnd();
+
+    // lane markings
+    glColor3d(1, 1, 1);
+    for (double y = -1.4; y < 1.4; y += 0.2) {
+        glBegin(GL_QUADS);
+        glVertex2d(-0.01, y + laneOffset);
+        glVertex2d(0.01, y + laneOffset);
+        glVertex2d(0.01, y + 0.1 + laneOffset);
+        glVertex2d(-0.01, y + 0.1 + laneOffset);
+        glEnd();
+    }
+}
+
+void drawCircle(double cx, double cy, double r, int num_segments) {
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex2d(cx, cy);
+    for (int i = 0; i < num_segments; i++) {
+        double theta = 2 * PI * double(i) / double(num_segments);
+        double x = r * cos(theta);
+        double y = r * sin(theta);
+        glVertex2d(x + cx, y + cy);
+    }
+    glEnd();
+}
+
+void drawCar(double x, double y, double r, double g, double b) {
+    glColor3d(r, g, b);
+
+    // Body
+    glBegin(GL_QUADS);
+    glVertex2d(x - carWidth / 2, y - 0.2);
+    glVertex2d(x + carWidth / 2, y - 0.2);
+    glVertex2d(x + carWidth / 2, y + 0.15);
+    glVertex2d(x - carWidth / 2, y + 0.15);
+    glEnd();
+
+    // Roof
+    glColor3d(r * 0.8, g * 0.8, b * 0.8);
+    glBegin(GL_QUADS);
+    glVertex2d(x - carWidth * 0.4, y - 0.15);
+    glVertex2d(x + carWidth * 0.4, y - 0.15);
+    glVertex2d(x + carWidth * 0.4, y + 0.04);
+    glVertex2d(x - carWidth * 0.4, y + 0.04);
+    glEnd();
+
+    // Wind Shield
+    glColor3d(0.5, 0.8, 1);
+    glBegin(GL_QUADS);
+    glVertex2d(x - carWidth * 0.4, y + 0.03);
+    glVertex2d(x + carWidth * 0.4, y + 0.03);
+    glVertex2d(x + carWidth * 0.35, y + 0.1);
+    glVertex2d(x - carWidth * 0.35, y + 0.1);
+    glEnd();
+
+    // Headlights
+    glColor3d(1, 1, 0);
+    glBegin(GL_QUADS);
+    glVertex2d(x - carWidth * 0.2, y + 0.16);
+    glVertex2d(x - carWidth / 2, y + 0.16);
+    glVertex2d(x - carWidth / 2, y + 0.15);
+    glVertex2d(x - carWidth * 0.2, y + 0.15);
+    glEnd();
+
+    glBegin(GL_QUADS);
+    glVertex2d(x + carWidth * 0.2, y + 0.16);
+    glVertex2d(x + carWidth / 2, y + 0.16);
+    glVertex2d(x + carWidth / 2, y + 0.15);
+    glVertex2d(x + carWidth * 0.2, y + 0.15);
+    glEnd();
+
+    glColor3d(1, 0, 0);
+    glBegin(GL_QUADS);
+    glVertex2d(x - carWidth * 0.2, y - 0.21);
+    glVertex2d(x - carWidth / 2, y - 0.21);
+    glVertex2d(x - carWidth / 2, y - 0.2);
+    glVertex2d(x - carWidth * 0.2, y - 0.2);
+    glEnd();
+
+    glBegin(GL_QUADS);
+    glVertex2d(x + carWidth * 0.2, y - 0.21);
+    glVertex2d(x + carWidth / 2, y - 0.21);
+    glVertex2d(x + carWidth / 2, y - 0.2);
+    glVertex2d(x + carWidth * 0.2, y - 0.2);
+    glEnd();
+}
+
+void initEnemies() {
+    for (size_t i = 0; i < enemies.size(); i++) {
+        enemies[i].width = carWidth;
+        enemies[i].height = 0.2;
+        enemies[i].y = 1.2 + i * 0.5;
+        enemies[i].x = lanes[laneDist(gen)];
+        enemies[i].r = colorDist(gen);
+        enemies[i].g = colorDist(gen);
+        enemies[i].b = colorDist(gen);
+        enemies[i].active = true;
+    }
+}
+
+void drawEnemies() {
+    for (const auto &enemy : enemies) {
+        if (enemy.active) {
+            drawCar(enemy.x, enemy.y, enemy.r, enemy.g, enemy.b);
+        }
+    }
+}
+
+void updateEnemies() {
+    for (auto &enemy : enemies) {
+        if (!enemy.active) continue;
+        enemy.y -= 0.01;
+        if (enemy.y < -1.4) {
+            enemy.y = 1.4;
+            enemy.x = lanes[laneDist(gen)];
+        }
+    }
+}
+
+void display() {
+    glClearColor(0.53, 0.81, 0.92, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    drawRoad();
+    drawCar(playerX, playerY, 0, 0, 1);
+    drawEnemies();
+
+    glFlush();
+}
+
+void keyboard(int key, int x, int y) {
+    if (key == GLUT_KEY_LEFT && playerX > -margin) {
+        playerX -= margin / 10;
+    } else if (key == GLUT_KEY_RIGHT && playerX < margin) {
+        playerX += margin / 10;
+    } else if (key == GLUT_KEY_UP && playerY < 1.0) {
+        playerY += 0.05;
+    } else if (key == GLUT_KEY_DOWN && playerY > -1.0) {
+        playerY -= 0.05;
+    }
+
+    glutPostRedisplay();
+}
+
+void update(int value) {
+    laneOffset -= 0.02; // moves road lane markings down
+    if (laneOffset < -0.4) laneOffset = 0.0;
+
+    updateEnemies();
+
+    glutPostRedisplay();
+    glutTimerFunc(30, update, 0);
+}
+
+int main(int argc, char **argv) {
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitWindowSize(WIDTH, HEIGHT);
+    glutCreateWindow("Car Race");
+
+    initLanes();
+    initEnemies();
+
+    glutDisplayFunc(display);
+    glutSpecialFunc(keyboard);
+    glutTimerFunc(30, update, 0);
+
+    glutMainLoop();
+    return 0;
+}

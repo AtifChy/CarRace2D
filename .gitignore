@@ -39,3 +39,8 @@
 
 # debug information files
 *.dwo
+
+# Other files to ignore
+out/
+.cache/
+compile_commands.json
