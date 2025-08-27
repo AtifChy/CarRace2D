@@ -20,6 +20,7 @@ double playerY = -0.75;
 
 double roadWidth = 0.7;
 double carWidth = 0.16;
+double carHeight = 0.2;
 double margin = (roadWidth - carWidth) / 2;
 
 double laneOffset = 0.0;
@@ -86,59 +87,100 @@ void drawCar(double x, double y, double r, double g, double b) {
 
     // Body
     glBegin(GL_QUADS);
-    glVertex2d(x - carWidth / 2, y - 0.2);
-    glVertex2d(x + carWidth / 2, y - 0.2);
-    glVertex2d(x + carWidth / 2, y + 0.15);
-    glVertex2d(x - carWidth / 2, y + 0.15);
+    glVertex2d(x - carWidth * 0.5, y - carHeight);
+    glVertex2d(x + carWidth * 0.5, y - carHeight);
+    glVertex2d(x + carWidth * 0.5, y + carHeight * 0.75);
+    glVertex2d(x - carWidth * 0.5, y + carHeight * 0.75);
     glEnd();
 
     // Roof
     glColor3d(r * 0.8, g * 0.8, b * 0.8);
     glBegin(GL_QUADS);
-    glVertex2d(x - carWidth * 0.4, y - 0.15);
-    glVertex2d(x + carWidth * 0.4, y - 0.15);
-    glVertex2d(x + carWidth * 0.4, y + 0.04);
-    glVertex2d(x - carWidth * 0.4, y + 0.04);
+    glVertex2d(x - carWidth * 0.4, y - carHeight * 0.75);
+    glVertex2d(x + carWidth * 0.4, y - carHeight * 0.75);
+    glVertex2d(x + carWidth * 0.4, y + carHeight * 0.2);
+    glVertex2d(x - carWidth * 0.4, y + carHeight * 0.2);
     glEnd();
 
     // Wind Shield
     glColor3d(0.5, 0.8, 1);
     glBegin(GL_QUADS);
-    glVertex2d(x - carWidth * 0.4, y + 0.03);
-    glVertex2d(x + carWidth * 0.4, y + 0.03);
-    glVertex2d(x + carWidth * 0.35, y + 0.1);
-    glVertex2d(x - carWidth * 0.35, y + 0.1);
+    glVertex2d(x - carWidth * 0.4, y + carHeight * 0.15);
+    glVertex2d(x + carWidth * 0.4, y + carHeight * 0.15);
+    glVertex2d(x + carWidth * 0.35, y + carHeight * 0.5);
+    glVertex2d(x - carWidth * 0.35, y + carHeight * 0.5);
     glEnd();
 
     // Headlights
     glColor3d(1, 1, 0);
+
+    // left top
     glBegin(GL_QUADS);
-    glVertex2d(x - carWidth * 0.2, y + 0.16);
-    glVertex2d(x - carWidth / 2, y + 0.16);
-    glVertex2d(x - carWidth / 2, y + 0.15);
-    glVertex2d(x - carWidth * 0.2, y + 0.15);
+    glVertex2d(x - carWidth * 0.2, y + carHeight * 0.80);
+    glVertex2d(x - carWidth * 0.5, y + carHeight * 0.80);
+    glVertex2d(x - carWidth * 0.5, y + carHeight * 0.75);
+    glVertex2d(x - carWidth * 0.2, y + carHeight * 0.75);
     glEnd();
 
+    // right top
     glBegin(GL_QUADS);
-    glVertex2d(x + carWidth * 0.2, y + 0.16);
-    glVertex2d(x + carWidth / 2, y + 0.16);
-    glVertex2d(x + carWidth / 2, y + 0.15);
-    glVertex2d(x + carWidth * 0.2, y + 0.15);
+    glVertex2d(x + carWidth * 0.2, y + carHeight * 0.80);
+    glVertex2d(x + carWidth * 0.5, y + carHeight * 0.80);
+    glVertex2d(x + carWidth * 0.5, y + carHeight * 0.75);
+    glVertex2d(x + carWidth * 0.2, y + carHeight * 0.75);
     glEnd();
 
     glColor3d(1, 0, 0);
+
+    // left bottom
     glBegin(GL_QUADS);
-    glVertex2d(x - carWidth * 0.2, y - 0.21);
-    glVertex2d(x - carWidth / 2, y - 0.21);
-    glVertex2d(x - carWidth / 2, y - 0.2);
-    glVertex2d(x - carWidth * 0.2, y - 0.2);
+    glVertex2d(x - carWidth * 0.2, y - carHeight * 1.05);
+    glVertex2d(x - carWidth * 0.5, y - carHeight * 1.05);
+    glVertex2d(x - carWidth * 0.5, y - carHeight);
+    glVertex2d(x - carWidth * 0.2, y - carHeight);
     glEnd();
 
+    // left bottom
     glBegin(GL_QUADS);
-    glVertex2d(x + carWidth * 0.2, y - 0.21);
-    glVertex2d(x + carWidth / 2, y - 0.21);
-    glVertex2d(x + carWidth / 2, y - 0.2);
-    glVertex2d(x + carWidth * 0.2, y - 0.2);
+    glVertex2d(x + carWidth * 0.2, y - carHeight * 1.05);
+    glVertex2d(x + carWidth * 0.5, y - carHeight * 1.05);
+    glVertex2d(x + carWidth * 0.5, y - carHeight);
+    glVertex2d(x + carWidth * 0.2, y - carHeight);
+    glEnd();
+
+    // Wheels
+    glColor3d(0.1, 0.1, 0.1);
+
+    // left top
+    glBegin(GL_QUADS);
+    glVertex2d(x - carWidth * 0.5, y + carHeight * 0.6);
+    glVertex2d(x - carWidth * 0.5, y + carHeight * 0.2);
+    glVertex2d(x - carWidth * 0.55, y + carHeight * 0.2);
+    glVertex2d(x - carWidth * 0.55, y + carHeight * 0.6);
+    glEnd();
+
+    // right top
+    glBegin(GL_QUADS);
+    glVertex2d(x + carWidth * 0.5, y + carHeight * 0.6);
+    glVertex2d(x + carWidth * 0.5, y + carHeight * 0.2);
+    glVertex2d(x + carWidth * 0.55, y + carHeight * 0.2);
+    glVertex2d(x + carWidth * 0.55, y + carHeight * 0.6);
+    glEnd();
+
+    // left bottom
+    glBegin(GL_QUADS);
+    glVertex2d(x - carWidth * 0.5, y - carHeight * 0.9);
+    glVertex2d(x - carWidth * 0.5, y - carHeight * 0.5);
+    glVertex2d(x - carWidth * 0.55, y - carHeight * 0.5);
+    glVertex2d(x - carWidth * 0.55, y - carHeight * 0.9);
+    glEnd();
+
+    // right bottom
+    glBegin(GL_QUADS);
+    glVertex2d(x + carWidth * 0.5, y - carHeight * 0.9);
+    glVertex2d(x + carWidth * 0.5, y - carHeight * 0.5);
+    glVertex2d(x + carWidth * 0.55, y - carHeight * 0.5);
+    glVertex2d(x + carWidth * 0.55, y - carHeight * 0.9);
     glEnd();
 }
 
