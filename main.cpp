@@ -42,7 +42,7 @@ struct EnemyCar {
 const int MAX_ENEMIES = 3;
 std::array<EnemyCar, MAX_ENEMIES> enemies;
 
-void initLanes() {
+void initRoad() {
     int numLanes = static_cast<int>(roadWidth / carWidth);
     lanes.reserve(numLanes);
     double laneSpacing = roadWidth / numLanes;
@@ -62,6 +62,41 @@ void drawRoad() {
     glVertex2d(roadWidth / 2, 1.0);
     glVertex2d(-roadWidth / 2, 1.0);
     glEnd();
+
+    // road borders
+    glColor3d(0.8, 0.8, 0.8);
+
+    glBegin(GL_QUADS);
+    glVertex2d(-roadWidth / 2 - 0.02, -1.0);
+    glVertex2d(-roadWidth / 2, -1.0);
+    glVertex2d(-roadWidth / 2, 1.0);
+    glVertex2d(-roadWidth / 2 - 0.02, 1.0);
+    glEnd();
+
+    glBegin(GL_QUADS);
+    glVertex2d(roadWidth / 2, -1.0);
+    glVertex2d(roadWidth / 2 + 0.02, -1.0);
+    glVertex2d(roadWidth / 2 + 0.02, 1.0);
+    glVertex2d(roadWidth / 2, 1.0);
+    glEnd();
+
+    for (double y = -1.4; y < 1.4; y += 0.1) {
+        glColor3d(1, 0.85, 0.2);
+
+        glBegin(GL_QUADS);
+        glVertex2d(-roadWidth / 2 - 0.02, y + laneOffset);
+        glVertex2d(-roadWidth / 2, y + laneOffset);
+        glVertex2d(-roadWidth / 2, y + 0.05 + laneOffset);
+        glVertex2d(-roadWidth / 2 - 0.02, y + 0.05 + laneOffset);
+        glEnd();
+
+        glBegin(GL_QUADS);
+        glVertex2d(roadWidth / 2, y + laneOffset);
+        glVertex2d(roadWidth / 2 + 0.02, y + laneOffset);
+        glVertex2d(roadWidth / 2 + 0.02, y + 0.05 + laneOffset);
+        glVertex2d(roadWidth / 2, y + 0.05 + laneOffset);
+        glEnd();
+    }
 
     // lane markings
     glColor3d(1, 1, 1);
@@ -227,7 +262,7 @@ void updateEnemies() {
 }
 
 void init() {
-    initLanes();
+    initRoad();
     initEnemies();
 }
 
