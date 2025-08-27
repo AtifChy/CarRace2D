@@ -10,22 +10,27 @@
 #define HEIGHT 800
 #define PI 3.14159265358979323846
 
+using RandInt = std::uniform_int_distribution<>;
+using RandReal = std::uniform_real_distribution<>;
+
 // random number generation setup
 static std::random_device rd;
 static std::mt19937 gen(rd());
-std::uniform_real_distribution<double> colorDist(0.0, 1.0);
+
+// random color generator
+RandReal colorDist(0.0, 1.0);
 
 double playerX = 0.0;
 double playerY = -0.75;
 
-double roadWidth = 0.7;
+double roadWidth = 0.9;
 double carWidth = 0.16;
 double carHeight = 0.2;
 double margin = (roadWidth - carWidth) / 2;
 
 double laneOffset = 0.0;
 std::vector<double> lanes;
-std::uniform_int_distribution<int> laneDist;
+RandInt laneDist;
 
 struct EnemyCar {
     double x, y;
@@ -42,10 +47,10 @@ void initLanes() {
     lanes.reserve(numLanes);
     double laneSpacing = roadWidth / numLanes;
     double startX = -roadWidth / 2 + laneSpacing / 2;
-    for (int i = 0; i < numLanes; i++) {
+    for (int i = 0; i < numLanes; ++i) {
         lanes.push_back(startX + i * laneSpacing);
     }
-    laneDist = std::uniform_int_distribution<int>(0, numLanes - 1);
+    laneDist = RandInt(0, numLanes - 1);
 }
 
 void drawRoad() {
@@ -68,6 +73,11 @@ void drawRoad() {
         glVertex2d(-0.01, y + 0.1 + laneOffset);
         glEnd();
     }
+}
+
+void updateRoad() {
+    laneOffset -= 0.02; // moves road lane markings down
+    if (laneOffset < -0.4) laneOffset = 0.0;
 }
 
 void drawCircle(double cx, double cy, double r, int num_segments) {
@@ -185,7 +195,7 @@ void drawCar(double x, double y, double r, double g, double b) {
 }
 
 void initEnemies() {
-    for (size_t i = 0; i < enemies.size(); i++) {
+    for (size_t i = 0; i < enemies.size(); ++i) {
         enemies[i].width = carWidth;
         enemies[i].height = 0.2;
         enemies[i].y = 1.2 + i * 0.5;
@@ -216,12 +226,17 @@ void updateEnemies() {
     }
 }
 
+void init() {
+    initLanes();
+    initEnemies();
+}
+
 void display() {
     glClearColor(0.53, 0.81, 0.92, 1);
     glClear(GL_COLOR_BUFFER_BIT);
 
     drawRoad();
-    drawCar(playerX, playerY, 0, 0, 1);
+    drawCar(playerX, playerY, 0.2, 0.3, 0.9);
     drawEnemies();
 
     glFlush();
@@ -242,9 +257,7 @@ void keyboard(int key, int x, int y) {
 }
 
 void update(int value) {
-    laneOffset -= 0.02; // moves road lane markings down
-    if (laneOffset < -0.4) laneOffset = 0.0;
-
+    updateRoad();
     updateEnemies();
 
     glutPostRedisplay();
@@ -257,8 +270,7 @@ int main(int argc, char **argv) {
     glutInitWindowSize(WIDTH, HEIGHT);
     glutCreateWindow("Car Race");
 
-    initLanes();
-    initEnemies();
+    init();
 
     glutDisplayFunc(display);
     glutSpecialFunc(keyboard);
