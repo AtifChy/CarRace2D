@@ -6,9 +6,10 @@
 #include <GL/freeglut_std.h>
 #include <GL/gl.h>
 
+#define PI 3.14159265358979323846
 #define WIDTH 1200
 #define HEIGHT 800
-#define PI 3.14159265358979323846
+#define MAX_ENEMIES 5
 
 using RandInt = std::uniform_int_distribution<>;
 using RandReal = std::uniform_real_distribution<>;
@@ -38,8 +39,6 @@ struct EnemyCar {
     double r, g, b;
     bool active;
 };
-
-const int MAX_ENEMIES = 3;
 std::array<EnemyCar, MAX_ENEMIES> enemies;
 
 void initRoad() {
@@ -232,7 +231,7 @@ void drawCar(double x, double y, double r, double g, double b) {
 void initEnemies() {
     for (size_t i = 0; i < enemies.size(); ++i) {
         enemies[i].width = carWidth;
-        enemies[i].height = 0.2;
+        enemies[i].height = carHeight;
         enemies[i].y = 1.2 + i * 0.5;
         enemies[i].x = lanes[laneDist(gen)];
         enemies[i].r = colorDist(gen);
@@ -301,9 +300,13 @@ void update(int value) {
 
 int main(int argc, char **argv) {
     glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_MULTISAMPLE);
     glutInitWindowSize(WIDTH, HEIGHT);
     glutCreateWindow("Car Race");
+
+    // enable anti-aliasing
+    glEnable(GLUT_MULTISAMPLE | GL_POLYGON_SMOOTH);
+    glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
 
     init();
 
