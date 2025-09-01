@@ -1,5 +1,6 @@
 #include <array>
 #include <cmath>
+#include <print>
 #include <random>
 #include <vector>
 
@@ -21,6 +22,14 @@ static std::mt19937 gen(rd());
 // random color generator
 RandReal colorDist(0.0, 1.0);
 
+// game state
+bool gameOver = false;
+bool paused = false;
+
+// game settings
+bool isCollisionEnabled = false;
+
+// game variables
 double playerX = 0.0;
 double playerY = -0.75;
 
@@ -249,6 +258,11 @@ void drawEnemies() {
     }
 }
 
+bool checkCollision(double x1, double y1, double w1, double h1, double x2, double y2, double w2, double h2) {
+    if (!isCollisionEnabled) return false;
+    return (std::abs(x1 - x2) * 2 < (w1 + w2)) && (std::abs(y1 - y2) * 2 < (h1 + h2));
+}
+
 void updateEnemies() {
     for (auto &enemy : enemies) {
         if (!enemy.active) continue;
@@ -256,6 +270,15 @@ void updateEnemies() {
         if (enemy.y < -1.4) {
             enemy.y = 1.4;
             enemy.x = lanes[laneDist(gen)];
+        }
+
+        if (checkCollision(playerX, playerY, carWidth, carHeight, enemy.x, enemy.y, enemy.width, enemy.height)) {
+            // reset game
+            std::println("Game Over!!");
+            playerX = 0.0;
+            playerY = -0.75;
+            initEnemies();
+            break;
         }
     }
 }
