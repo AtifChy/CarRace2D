@@ -50,6 +50,64 @@ struct EnemyCar {
 };
 std::array<EnemyCar, MAX_ENEMIES> enemies;
 
+std::vector<std::pair<double, double>> leftGrassBlades;
+std::vector<std::pair<double, double>> rightGrassBlades;
+
+void initGrass() {
+    int numBlades = 200;
+    leftGrassBlades.reserve(numBlades);
+    rightGrassBlades.reserve(numBlades);
+    RandReal xDist(-1.0, -roadWidth / 2 - 0.05);
+    RandReal yDist(-1.0, 1.0);
+    for (int i = 0; i < numBlades; ++i) {
+        leftGrassBlades.emplace_back(xDist(gen), yDist(gen));
+        rightGrassBlades.emplace_back(-xDist(gen), yDist(gen));
+    }
+}
+
+void drawGrass() {
+    glColor3ub(46, 111, 64);
+
+    glBegin(GL_QUADS);
+    glVertex2d(-1.0, -1.0);
+    glVertex2d(-roadWidth / 2, -1.0);
+    glVertex2d(-roadWidth / 2, 1.0);
+    glVertex2d(-1.0, 1.0);
+    glEnd();
+
+    glBegin(GL_QUADS);
+    glVertex2d(roadWidth / 2, -1.0);
+    glVertex2d(1.0, -1.0);
+    glVertex2d(1.0, 1.0);
+    glVertex2d(roadWidth / 2, 1.0);
+    glEnd();
+
+    glColor3ub(104, 186, 127);
+    for (const auto &[x, y] : leftGrassBlades) {
+        glBegin(GL_LINES);
+        glVertex2d(x, y);
+        glVertex2d(x + 0.01, y + 0.03);
+        glEnd();
+    }
+    for (const auto &[x, y] : rightGrassBlades) {
+        glBegin(GL_LINES);
+        glVertex2d(x, y);
+        glVertex2d(x - 0.01, y + 0.03);
+        glEnd();
+    }
+}
+
+void updateGrass() {
+    for (auto &[x, y] : leftGrassBlades) {
+        y -= 0.01;
+        if (y < -1.0) y = 1.0;
+    }
+    for (auto &[x, y] : rightGrassBlades) {
+        y -= 0.01;
+        if (y < -1.0) y = 1.0;
+    }
+}
+
 void initRoad() {
     int numLanes = static_cast<int>(roadWidth / carWidth);
     lanes.reserve(numLanes);
@@ -284,6 +342,7 @@ void updateEnemies() {
 }
 
 void init() {
+    initGrass();
     initRoad();
     initEnemies();
 }
@@ -292,6 +351,7 @@ void display() {
     glClearColor(0.53, 0.81, 0.92, 1);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    drawGrass();
     drawRoad();
     drawCar(playerX, playerY, 0.2, 0.3, 0.9);
     drawEnemies();
@@ -314,6 +374,7 @@ void keyboard(int key, int x, int y) {
 }
 
 void update(int value) {
+    updateGrass();
     updateRoad();
     updateEnemies();
 
