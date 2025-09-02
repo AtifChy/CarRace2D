@@ -1,7 +1,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <print>
+#include <iostream>
 #include <random>
 #include <string>
 #include <vector>
@@ -31,7 +31,7 @@ bool paused = false;
 int64_t score = 0;
 
 // game settings
-bool isCollisionEnabled = false;
+bool isCollisionEnabled = true;
 
 // game variables
 double playerX = 0.0;
@@ -87,16 +87,16 @@ void drawGrass() {
     glEnd();
 
     glColor3ub(104, 186, 127);
-    for (const auto &[x, y] : leftGrassBlades) {
+    for (const auto &blade : leftGrassBlades) {
         glBegin(GL_LINES);
-        glVertex2d(x, y);
-        glVertex2d(x + 0.01, y + 0.03);
+        glVertex2d(blade.first, blade.second);
+        glVertex2d(blade.first + 0.01, blade.second + 0.03);
         glEnd();
     }
-    for (const auto &[x, y] : rightGrassBlades) {
+    for (const auto &blade : rightGrassBlades) {
         glBegin(GL_LINES);
-        glVertex2d(x, y);
-        glVertex2d(x - 0.01, y + 0.03);
+        glVertex2d(blade.first, blade.second);
+        glVertex2d(blade.first - 0.01, blade.second + 0.03);
         glEnd();
     }
 }
@@ -336,7 +336,7 @@ void updateEnemies() {
 
         if (checkCollision(playerX, playerY, carWidth, carHeight, enemy.x, enemy.y, enemy.width, enemy.height)) {
             // reset game
-            std::println("Game Over!!");
+            std::cout << "Game Over!!\n";
             playerX = 0.0;
             playerY = -0.75;
             initEnemies();
