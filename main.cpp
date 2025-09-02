@@ -1,23 +1,26 @@
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <print>
 #include <random>
+#include <string>
 #include <vector>
 
 #include <GL/freeglut_std.h>
 #include <GL/gl.h>
 
-#define PI 3.14159265358979323846
-#define WIDTH 1200
-#define HEIGHT 800
-#define MAX_ENEMIES 5
-
-using RandInt = std::uniform_int_distribution<>;
-using RandReal = std::uniform_real_distribution<>;
+const double PI = 3.1416;
+const int WIDTH = 1200;
+const int HEIGHT = 800;
+const int MAX_ENEMIES = 4;
 
 // random number generation setup
 static std::random_device rd;
 static std::mt19937 gen(rd());
+
+// alias for random distributions
+using RandInt = std::uniform_int_distribution<>;
+using RandReal = std::uniform_real_distribution<>;
 
 // random color generator
 RandReal colorDist(0.0, 1.0);
@@ -25,6 +28,7 @@ RandReal colorDist(0.0, 1.0);
 // game state
 bool gameOver = false;
 bool paused = false;
+int64_t score = 0;
 
 // game settings
 bool isCollisionEnabled = false;
@@ -341,6 +345,21 @@ void updateEnemies() {
     }
 }
 
+void updateScore() { score += 1; }
+
+void drawText(double x, double y, const std::string &text) {
+    glRasterPos2d(x, y);
+    for (char c : text) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+    }
+}
+
+void drawScore() {
+    glColor3d(1, 1, 1);
+    std::string scoreText = "Score:" + std::to_string(score);
+    drawText(-0.95, 0.9, scoreText);
+}
+
 void init() {
     initGrass();
     initRoad();
@@ -355,6 +374,7 @@ void display() {
     drawRoad();
     drawCar(playerX, playerY, 0.2, 0.3, 0.9);
     drawEnemies();
+    drawScore();
 
     glFlush();
 }
@@ -377,6 +397,7 @@ void update(int value) {
     updateGrass();
     updateRoad();
     updateEnemies();
+    updateScore();
 
     glutPostRedisplay();
     glutTimerFunc(30, update, 0);
