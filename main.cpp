@@ -28,7 +28,6 @@ RandReal colorDist(0.0, 1.0);
 // game state
 bool gameOver = false;
 bool paused = false;
-int64_t score = 0;
 
 // game settings
 bool isCollisionEnabled = true;
@@ -42,22 +41,21 @@ double carWidth = 0.16;
 double carHeight = 0.2;
 double margin = (roadWidth - carWidth) / 2;
 
-double laneOffset = 0.0;
-std::vector<double> lanes;
-RandInt laneDist;
+// TODO: Different type of Scenery, different type of road, different type of car
 
-struct EnemyCar {
-    double x, y;
-    double width, height;
-    double r, g, b;
-    bool active;
-};
-std::array<EnemyCar, MAX_ENEMIES> enemies;
+enum class SceneryType { GRASS, DESERT };
+static SceneryType currentScenery = SceneryType::GRASS;
+static int scenerayIntervalMS = 5000; // 20 seconds
 
+// #region Scenery
+
+// ----- Grass -----
 std::vector<std::pair<double, double>> leftGrassBlades;
 std::vector<std::pair<double, double>> rightGrassBlades;
 
 void initGrass() {
+    leftGrassBlades.clear();
+    rightGrassBlades.clear();
     int numBlades = 200;
     leftGrassBlades.reserve(numBlades);
     rightGrassBlades.reserve(numBlades);
@@ -111,6 +109,138 @@ void updateGrass() {
         if (y < -1.0) y = 1.0;
     }
 }
+
+// ----- Desert -----
+struct Cactus {
+    double x, y;
+    double size;
+};
+std::vector<Cactus> leftCt;
+std::vector<Cactus> rightCt;
+
+void drawCactus(double x, double y, double size) {
+    glColor3ub(34, 139, 34);
+    glBegin(GL_QUADS); // body
+    glVertex2d(x - 0.015 * size, y - 0.02);
+    glVertex2d(x + 0.015 * size, y - 0.02);
+    glVertex2d(x + 0.015 * size, y + 0.12 * size);
+    glVertex2d(x - 0.015 * size, y + 0.12 * size);
+    glEnd();
+    glBegin(GL_QUADS); // left arm
+    glVertex2d(x - 0.035 * size, y + 0.02 * size);
+    glVertex2d(x - 0.015 * size, y + 0.02 * size);
+    glVertex2d(x - 0.015 * size, y + 0.07 * size);
+    glVertex2d(x - 0.035 * size, y + 0.07 * size);
+    glEnd();
+    glBegin(GL_QUADS); // right arm
+    glVertex2d(x + 0.015 * size, y + 0.02 * size);
+    glVertex2d(x + 0.035 * size, y + 0.02 * size);
+    glVertex2d(x + 0.035 * size, y + 0.07 * size);
+    glVertex2d(x + 0.015 * size, y + 0.07 * size);
+    glEnd();
+}
+
+void initDesert() {
+    leftCt.clear();
+    rightCt.clear();
+    int num = 20;
+    leftCt.reserve(num);
+    rightCt.reserve(num);
+    RandReal xLeft(-1.0, -roadWidth / 2 - 0.05);
+    RandReal xRight(roadWidth / 2 + 0.05, 1.0);
+    RandReal yDist(-1.0, 1.0);
+    RandReal sDist(0.7, 1.4);
+    for (int i = 0; i < num; ++i) {
+        leftCt.push_back({xLeft(gen), yDist(gen), sDist(gen)});
+        rightCt.push_back({xRight(gen), yDist(gen), sDist(gen)});
+    }
+}
+
+void drawDesert() {
+    glColor3ub(237, 201, 175);
+    glBegin(GL_QUADS); // left sand
+    glVertex2d(-1.0, -1.0);
+    glVertex2d(-roadWidth / 2, -1.0);
+    glVertex2d(-roadWidth / 2, 1.0);
+    glVertex2d(-1.0, 1.0);
+    glEnd();
+    glBegin(GL_QUADS); // right sand
+    glVertex2d(roadWidth / 2, -1.0);
+    glVertex2d(1.0, -1.0);
+    glVertex2d(1.0, 1.0);
+    glVertex2d(roadWidth / 2, 1.0);
+    glEnd();
+    for (const auto &c : leftCt) {
+        drawCactus(c.x, c.y, c.size);
+    }
+    for (const auto &c : rightCt) {
+        drawCactus(c.x, c.y, c.size);
+    }
+}
+
+void updateDesert() {
+    for (auto &c : leftCt) {
+        c.y -= 0.01;
+        if (c.y < -1.0) c.y = 1.0;
+    }
+    for (auto &c : rightCt) {
+        c.y -= 0.01;
+        if (c.y < -1.0) c.y = 1.0;
+    }
+}
+
+// Scenery
+void initScenery(SceneryType t) {
+    switch (t) {
+    case SceneryType::GRASS:
+        initGrass();
+        break;
+    case SceneryType::DESERT:
+        initDesert();
+        break;
+    }
+}
+
+void drawScenery() {
+    switch (currentScenery) {
+    case SceneryType::GRASS:
+        drawGrass();
+        break;
+    case SceneryType::DESERT:
+        drawDesert();
+        break;
+    }
+}
+
+void updateScenery() {
+    switch (currentScenery) {
+    case SceneryType::GRASS:
+        updateGrass();
+        break;
+    case SceneryType::DESERT:
+        updateDesert();
+        break;
+    }
+}
+
+int lastScenerySwitchTime = 0;
+void autoSwitchScenery() {
+    int now = glutGet(GLUT_ELAPSED_TIME);
+    if (now - lastScenerySwitchTime >= scenerayIntervalMS) {
+        lastScenerySwitchTime = now;
+        int next = (static_cast<int>(currentScenery) + 1) % 2;
+        currentScenery = static_cast<SceneryType>(next);
+        initScenery(currentScenery);
+    }
+}
+
+// #endregion
+
+// #region Road
+
+double laneOffset = 0.0;
+std::vector<double> lanes;
+RandInt laneDist;
 
 void initRoad() {
     int numLanes = static_cast<int>(roadWidth / carWidth);
@@ -185,129 +315,329 @@ void updateRoad() {
     if (laneOffset < -0.4) laneOffset = 0.0;
 }
 
-void drawCircle(double cx, double cy, double r, int num_segments) {
-    glBegin(GL_TRIANGLE_FAN);
-    glVertex2d(cx, cy);
-    for (int i = 0; i < num_segments; i++) {
-        double theta = 2 * PI * double(i) / double(num_segments);
-        double x = r * cos(theta);
-        double y = r * sin(theta);
-        glVertex2d(x + cx, y + cy);
+// #endregion Road
+
+// #region Car
+
+enum class CarType { SEDAN, SUV, TRACK };
+
+void drawRoundedRect(double x, double y, double w, double h, double radius, int segments = 12) {
+    double left = x - w * 0.5;
+    double right = x + w * 0.5;
+    double top = y + h * 0.75;
+    double bottom = y - h;
+
+    // Corner centers
+    double cx[4] = {right - radius, left + radius, left + radius, right - radius};
+    double cy[4] = {top - radius, top - radius, bottom + radius, bottom + radius};
+
+    // Angles for each corner (in radians)
+    double start[4] = {0, PI / 2, PI, 3 * PI / 2};
+
+    glBegin(GL_POLYGON);
+
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j <= segments; j++) {
+            double theta = start[i] + (PI / 2) * (double)j / segments;
+            double vx = cx[i] + radius * cos(theta);
+            double vy = cy[i] + radius * sin(theta);
+            glVertex2d(vx, vy);
+        }
     }
+
     glEnd();
 }
 
-void drawCar(double x, double y, double r, double g, double b) {
-    glColor3d(r, g, b);
+void drawCar(double x, double y, double r, double g, double b, CarType type = CarType::SUV) {
+    double w = carWidth;
+    double h = carHeight;
 
-    // Body
-    glBegin(GL_QUADS);
-    glVertex2d(x - carWidth * 0.5, y - carHeight);
-    glVertex2d(x + carWidth * 0.5, y - carHeight);
-    glVertex2d(x + carWidth * 0.5, y + carHeight * 0.75);
-    glVertex2d(x - carWidth * 0.5, y + carHeight * 0.75);
-    glEnd();
+    switch (type) {
+    case CarType::SEDAN: {
+        glColor3d(r, g, b);
+        // Body
+        glBegin(GL_QUADS);
+        glVertex2d(x - w * 0.5, y - h);
+        glVertex2d(x + w * 0.5, y - h);
+        glVertex2d(x + w * 0.5, y + h * 0.75);
+        glVertex2d(x - w * 0.5, y + h * 0.75);
+        glEnd();
 
-    // Roof
-    glColor3d(r * 0.8, g * 0.8, b * 0.8);
-    glBegin(GL_QUADS);
-    glVertex2d(x - carWidth * 0.4, y - carHeight * 0.75);
-    glVertex2d(x + carWidth * 0.4, y - carHeight * 0.75);
-    glVertex2d(x + carWidth * 0.4, y + carHeight * 0.2);
-    glVertex2d(x - carWidth * 0.4, y + carHeight * 0.2);
-    glEnd();
+        // Roof
+        glColor3d(r * 0.8, g * 0.8, b * 0.8);
+        glBegin(GL_QUADS);
+        glVertex2d(x - w * 0.4, y - h * 0.75);
+        glVertex2d(x + w * 0.4, y - h * 0.75);
+        glVertex2d(x + w * 0.4, y + h * 0.2);
+        glVertex2d(x - w * 0.4, y + h * 0.2);
+        glEnd();
 
-    // Wind Shield
-    glColor3d(0.5, 0.8, 1);
-    glBegin(GL_QUADS);
-    glVertex2d(x - carWidth * 0.4, y + carHeight * 0.15);
-    glVertex2d(x + carWidth * 0.4, y + carHeight * 0.15);
-    glVertex2d(x + carWidth * 0.35, y + carHeight * 0.5);
-    glVertex2d(x - carWidth * 0.35, y + carHeight * 0.5);
-    glEnd();
+        // Windshield
+        glColor3d(0.5, 0.8, 1);
+        glBegin(GL_QUADS);
+        glVertex2d(x - w * 0.4, y + h * 0.15);
+        glVertex2d(x + w * 0.4, y + h * 0.15);
+        glVertex2d(x + w * 0.35, y + h * 0.5);
+        glVertex2d(x - w * 0.35, y + h * 0.5);
+        glEnd();
 
-    // Headlights
-    glColor3d(1, 1, 0);
+        // Headlights
+        glColor3d(1, 1, 0);
+        glBegin(GL_QUADS); // left front
+        glVertex2d(x - w * 0.2, y + h * 0.80);
+        glVertex2d(x - w * 0.5, y + h * 0.80);
+        glVertex2d(x - w * 0.5, y + h * 0.75);
+        glVertex2d(x - w * 0.2, y + h * 0.75);
+        glEnd();
+        glBegin(GL_QUADS); // right front
+        glVertex2d(x + w * 0.2, y + h * 0.80);
+        glVertex2d(x + w * 0.5, y + h * 0.80);
+        glVertex2d(x + w * 0.5, y + h * 0.75);
+        glVertex2d(x + w * 0.2, y + h * 0.75);
+        glEnd();
 
-    // left top
-    glBegin(GL_QUADS);
-    glVertex2d(x - carWidth * 0.2, y + carHeight * 0.80);
-    glVertex2d(x - carWidth * 0.5, y + carHeight * 0.80);
-    glVertex2d(x - carWidth * 0.5, y + carHeight * 0.75);
-    glVertex2d(x - carWidth * 0.2, y + carHeight * 0.75);
-    glEnd();
+        glColor3d(1, 0, 0);
+        glBegin(GL_QUADS); // left rear
+        glVertex2d(x - w * 0.2, y - h * 1.05);
+        glVertex2d(x - w * 0.5, y - h * 1.05);
+        glVertex2d(x - w * 0.5, y - h);
+        glVertex2d(x - w * 0.2, y - h);
+        glEnd();
+        glBegin(GL_QUADS); // right rear
+        glVertex2d(x + w * 0.2, y - h * 1.05);
+        glVertex2d(x + w * 0.5, y - h * 1.05);
+        glVertex2d(x + w * 0.5, y - h);
+        glVertex2d(x + w * 0.2, y - h);
+        glEnd();
 
-    // right top
-    glBegin(GL_QUADS);
-    glVertex2d(x + carWidth * 0.2, y + carHeight * 0.80);
-    glVertex2d(x + carWidth * 0.5, y + carHeight * 0.80);
-    glVertex2d(x + carWidth * 0.5, y + carHeight * 0.75);
-    glVertex2d(x + carWidth * 0.2, y + carHeight * 0.75);
-    glEnd();
+        // Wheels
+        glColor3d(0.1, 0.1, 0.1);
+        glBegin(GL_QUADS); // left front
+        glVertex2d(x - w * 0.5, y + h * 0.6);
+        glVertex2d(x - w * 0.5, y + h * 0.2);
+        glVertex2d(x - w * 0.55, y + h * 0.2);
+        glVertex2d(x - w * 0.55, y + h * 0.6);
+        glEnd();
+        glBegin(GL_QUADS); // right front
+        glVertex2d(x + w * 0.5, y + h * 0.6);
+        glVertex2d(x + w * 0.5, y + h * 0.2);
+        glVertex2d(x + w * 0.55, y + h * 0.2);
+        glVertex2d(x + w * 0.55, y + h * 0.6);
+        glEnd();
+        glBegin(GL_QUADS); // left rear
+        glVertex2d(x - w * 0.5, y - h * 0.9);
+        glVertex2d(x - w * 0.5, y - h * 0.5);
+        glVertex2d(x - w * 0.55, y - h * 0.5);
+        glVertex2d(x - w * 0.55, y - h * 0.9);
+        glEnd();
+        glBegin(GL_QUADS); // right rear
+        glVertex2d(x + w * 0.5, y - h * 0.9);
+        glVertex2d(x + w * 0.5, y - h * 0.5);
+        glVertex2d(x + w * 0.55, y - h * 0.5);
+        glVertex2d(x + w * 0.55, y - h * 0.9);
+        glEnd();
+        break;
+    }
 
-    glColor3d(1, 0, 0);
+    case CarType::SUV: {
+        glColor3d(r, g, b);
+        // Body
+        drawRoundedRect(x, y, w, h * 1.1, w * 0.1);
 
-    // left bottom
-    glBegin(GL_QUADS);
-    glVertex2d(x - carWidth * 0.2, y - carHeight * 1.05);
-    glVertex2d(x - carWidth * 0.5, y - carHeight * 1.05);
-    glVertex2d(x - carWidth * 0.5, y - carHeight);
-    glVertex2d(x - carWidth * 0.2, y - carHeight);
-    glEnd();
+        // Roof
+        glColor3d(r * 0.8, g * 0.8, b * 0.8);
+        glBegin(GL_QUADS);
+        glVertex2d(x - w * 0.45, y - h * 0.75);
+        glVertex2d(x + w * 0.45, y - h * 0.75);
+        glVertex2d(x + w * 0.45, y + h * 0.3);
+        glVertex2d(x - w * 0.45, y + h * 0.3);
+        glEnd();
 
-    // left bottom
-    glBegin(GL_QUADS);
-    glVertex2d(x + carWidth * 0.2, y - carHeight * 1.05);
-    glVertex2d(x + carWidth * 0.5, y - carHeight * 1.05);
-    glVertex2d(x + carWidth * 0.5, y - carHeight);
-    glVertex2d(x + carWidth * 0.2, y - carHeight);
-    glEnd();
+        // Windshield
+        glColor3d(0.5, 0.8, 1);
+        glBegin(GL_QUADS);
+        glVertex2d(x - w * 0.45, y + h * 0.25);
+        glVertex2d(x + w * 0.45, y + h * 0.25);
+        glVertex2d(x + w * 0.4, y + h * 0.5);
+        glVertex2d(x - w * 0.4, y + h * 0.5);
+        glEnd();
 
-    // Wheels
-    glColor3d(0.1, 0.1, 0.1);
+        // Headlights
+        glColor3d(1, 1, 0);
+        glBegin(GL_QUADS); // left front
+        glVertex2d(x - w * 0.3, y + h * 0.80);
+        glVertex2d(x - w * 0.5, y + h * 0.80);
+        glVertex2d(x - w * 0.5, y + h * 0.7);
+        glVertex2d(x - w * 0.3, y + h * 0.7);
+        glEnd();
+        glBegin(GL_QUADS); // right front
+        glVertex2d(x + w * 0.3, y + h * 0.80);
+        glVertex2d(x + w * 0.5, y + h * 0.80);
+        glVertex2d(x + w * 0.5, y + h * 0.7);
+        glVertex2d(x + w * 0.3, y + h * 0.7);
+        glEnd();
 
-    // left top
-    glBegin(GL_QUADS);
-    glVertex2d(x - carWidth * 0.5, y + carHeight * 0.6);
-    glVertex2d(x - carWidth * 0.5, y + carHeight * 0.2);
-    glVertex2d(x - carWidth * 0.55, y + carHeight * 0.2);
-    glVertex2d(x - carWidth * 0.55, y + carHeight * 0.6);
-    glEnd();
+        glColor3d(1, 0, 0);
+        glBegin(GL_QUADS); // left rear
+        glVertex2d(x - w * 0.3, y - h * 1.1);
+        glVertex2d(x - w * 0.5, y - h * 1.1);
+        glVertex2d(x - w * 0.5, y - h);
+        glVertex2d(x - w * 0.3, y - h);
+        glEnd();
+        glBegin(GL_QUADS); // right rear
+        glVertex2d(x + w * 0.3, y - h * 1.1);
+        glVertex2d(x + w * 0.5, y - h * 1.1);
+        glVertex2d(x + w * 0.5, y - h);
+        glVertex2d(x + w * 0.3, y - h);
+        glEnd();
 
-    // right top
-    glBegin(GL_QUADS);
-    glVertex2d(x + carWidth * 0.5, y + carHeight * 0.6);
-    glVertex2d(x + carWidth * 0.5, y + carHeight * 0.2);
-    glVertex2d(x + carWidth * 0.55, y + carHeight * 0.2);
-    glVertex2d(x + carWidth * 0.55, y + carHeight * 0.6);
-    glEnd();
+        // Wheels
+        glColor3d(0.1, 0.1, 0.1);
+        glBegin(GL_QUADS); // left front
+        glVertex2d(x - w * 0.5, y + h * 0.6);
+        glVertex2d(x - w * 0.5, y + h * 0.2);
+        glVertex2d(x - w * 0.55, y + h * 0.2);
+        glVertex2d(x - w * 0.55, y + h * 0.6);
+        glEnd();
+        glBegin(GL_QUADS); // right front
+        glVertex2d(x + w * 0.5, y + h * 0.6);
+        glVertex2d(x + w * 0.5, y + h * 0.2);
+        glVertex2d(x + w * 0.55, y + h * 0.2);
+        glVertex2d(x + w * 0.55, y + h * 0.6);
+        glEnd();
+        glBegin(GL_QUADS); // left rear
+        glVertex2d(x - w * 0.5, y - h * 0.9);
+        glVertex2d(x - w * 0.5, y - h * 0.5);
+        glVertex2d(x - w * 0.55, y - h * 0.5);
+        glVertex2d(x - w * 0.55, y - h * 0.9);
+        glEnd();
+        glBegin(GL_QUADS); // right rear
+        glVertex2d(x + w * 0.5, y - h * 0.9);
+        glVertex2d(x + w * 0.5, y - h * 0.5);
+        glVertex2d(x + w * 0.55, y - h * 0.5);
+        glVertex2d(x + w * 0.55, y - h * 0.9);
+        glEnd();
+        break;
+    }
 
-    // left bottom
-    glBegin(GL_QUADS);
-    glVertex2d(x - carWidth * 0.5, y - carHeight * 0.9);
-    glVertex2d(x - carWidth * 0.5, y - carHeight * 0.5);
-    glVertex2d(x - carWidth * 0.55, y - carHeight * 0.5);
-    glVertex2d(x - carWidth * 0.55, y - carHeight * 0.9);
-    glEnd();
+    case CarType::TRACK: {
+        glColor3d(r, g, b);
+        // Body
+        glBegin(GL_QUADS);
+        glVertex2d(x - w * 0.5, y - h);
+        glVertex2d(x + w * 0.5, y - h);
+        glVertex2d(x + w * 0.5, y + h * 0.75);
+        glVertex2d(x - w * 0.5, y + h * 0.75);
+        glEnd();
 
-    // right bottom
-    glBegin(GL_QUADS);
-    glVertex2d(x + carWidth * 0.5, y - carHeight * 0.9);
-    glVertex2d(x + carWidth * 0.5, y - carHeight * 0.5);
-    glVertex2d(x + carWidth * 0.55, y - carHeight * 0.5);
-    glVertex2d(x + carWidth * 0.55, y - carHeight * 0.9);
-    glEnd();
+        // Roof
+        glColor3d(r * 0.8, g * 0.8, b * 0.8);
+        glBegin(GL_QUADS);
+        glVertex2d(x - w * 0.4, y - h * 0.75);
+        glVertex2d(x + w * 0.4, y - h * 0.75);
+        glVertex2d(x + w * 0.4, y + h * 0.35);
+        glVertex2d(x - w * 0.4, y + h * 0.35);
+        glEnd();
+
+        // Trunk
+        glColor3d(r * 0.2, g * 0.6, b * 0.9);
+        glBegin(GL_QUADS);
+        glVertex2d(x - w * 0.45, y - h * 0.9);
+        glVertex2d(x + w * 0.45, y - h * 0.9);
+        glVertex2d(x + w * 0.45, y - h * 0.05);
+        glVertex2d(x - w * 0.45, y - h * 0.05);
+        glEnd();
+
+        // Windshield
+        glColor3d(0.5, 0.8, 1);
+        glBegin(GL_QUADS);
+        glVertex2d(x - w * 0.4, y + h * 0.35);
+        glVertex2d(x + w * 0.4, y + h * 0.35);
+        glVertex2d(x + w * 0.35, y + h * 0.6);
+        glVertex2d(x - w * 0.35, y + h * 0.6);
+        glEnd();
+
+        // Headlights (front) and taillights (rear)
+        glColor3d(1, 1, 0);
+        glBegin(GL_QUADS); // left front
+        glVertex2d(x - w * 0.2, y + h * 0.80);
+        glVertex2d(x - w * 0.5, y + h * 0.80);
+        glVertex2d(x - w * 0.5, y + h * 0.75);
+        glVertex2d(x - w * 0.2, y + h * 0.75);
+        glEnd();
+        glBegin(GL_QUADS); // right front
+        glVertex2d(x + w * 0.2, y + h * 0.80);
+        glVertex2d(x + w * 0.5, y + h * 0.80);
+        glVertex2d(x + w * 0.5, y + h * 0.75);
+        glVertex2d(x + w * 0.2, y + h * 0.75);
+        glEnd();
+
+        glColor3d(1, 0, 0);
+        glBegin(GL_QUADS); // left rear
+        glVertex2d(x - w * 0.2, y - h * 1.05);
+        glVertex2d(x - w * 0.5, y - h * 1.05);
+        glVertex2d(x - w * 0.5, y - h);
+        glVertex2d(x - w * 0.2, y - h);
+        glEnd();
+        glBegin(GL_QUADS); // right rear
+        glVertex2d(x + w * 0.2, y - h * 1.05);
+        glVertex2d(x + w * 0.5, y - h * 1.05);
+        glVertex2d(x + w * 0.5, y - h);
+        glVertex2d(x + w * 0.2, y - h);
+        glEnd();
+
+        // Wheels
+        glColor3d(0.1, 0.1, 0.1);
+        glBegin(GL_QUADS); // left front
+        glVertex2d(x - w * 0.5, y + h * 0.6);
+        glVertex2d(x - w * 0.5, y + h * 0.2);
+        glVertex2d(x - w * 0.55, y + h * 0.2);
+        glVertex2d(x - w * 0.55, y + h * 0.6);
+        glEnd();
+        glBegin(GL_QUADS); // right front
+        glVertex2d(x + w * 0.5, y + h * 0.6);
+        glVertex2d(x + w * 0.5, y + h * 0.2);
+        glVertex2d(x + w * 0.55, y + h * 0.2);
+        glVertex2d(x + w * 0.55, y + h * 0.6);
+        glEnd();
+        glBegin(GL_QUADS); // left rear
+        glVertex2d(x - w * 0.5, y - h * 0.9);
+        glVertex2d(x - w * 0.5, y - h * 0.5);
+        glVertex2d(x - w * 0.55, y - h * 0.5);
+        glVertex2d(x - w * 0.55, y - h * 0.9);
+        glEnd();
+        glBegin(GL_QUADS); // right rear
+        glVertex2d(x + w * 0.5, y - h * 0.9);
+        glVertex2d(x + w * 0.5, y - h * 0.5);
+        glVertex2d(x + w * 0.55, y - h * 0.5);
+        glVertex2d(x + w * 0.55, y - h * 0.9);
+        glEnd();
+        break;
+    }
+    }
 }
+
+// #endregion Car
+
+// #region Enemy
+
+struct EnemyCar {
+    double x, y;
+    CarType type;
+    double r, g, b;
+    bool active;
+};
+std::array<EnemyCar, MAX_ENEMIES> enemies;
 
 void initEnemies() {
+    RandInt typeDist(0, 2);
     for (size_t i = 0; i < enemies.size(); ++i) {
-        enemies[i].width = carWidth;
-        enemies[i].height = carHeight;
         enemies[i].y = 1.2 + i * 0.5;
         enemies[i].x = lanes[laneDist(gen)];
         enemies[i].r = colorDist(gen);
         enemies[i].g = colorDist(gen);
         enemies[i].b = colorDist(gen);
+        enemies[i].type = static_cast<CarType>(typeDist(gen));
         enemies[i].active = true;
     }
 }
@@ -315,14 +645,14 @@ void initEnemies() {
 void drawEnemies() {
     for (const auto &enemy : enemies) {
         if (enemy.active) {
-            drawCar(enemy.x, enemy.y, enemy.r, enemy.g, enemy.b);
+            drawCar(enemy.x, enemy.y, enemy.r, enemy.g, enemy.b, enemy.type);
         }
     }
 }
 
-bool checkCollision(double x1, double y1, double w1, double h1, double x2, double y2, double w2, double h2) {
+bool checkCollision(double x1, double y1, double x2, double y2) {
     if (!isCollisionEnabled) return false;
-    return (std::abs(x1 - x2) * 2 < (w1 + w2)) && (std::abs(y1 - y2) * 2 < (h1 + h2));
+    return (std::abs(x1 - x2) * 2 < (2 * carWidth)) && (std::abs(y1 - y2) * 2 < (2 * carHeight));
 }
 
 void updateEnemies() {
@@ -334,16 +664,20 @@ void updateEnemies() {
             enemy.x = lanes[laneDist(gen)];
         }
 
-        if (checkCollision(playerX, playerY, carWidth, carHeight, enemy.x, enemy.y, enemy.width, enemy.height)) {
+        if (checkCollision(playerX, playerY, enemy.x, enemy.y)) {
             // reset game
             std::cout << "Game Over!!\n";
-            playerX = 0.0;
-            playerY = -0.75;
-            initEnemies();
+            gameOver = true;
             break;
         }
     }
 }
+
+// #endregion Grass
+
+// #region Score
+
+int64_t score = 0;
 
 void updateScore() { score += 1; }
 
@@ -360,8 +694,37 @@ void drawScore() {
     drawText(-0.95, 0.9, scoreText);
 }
 
+// #endregion Score
+
+void resetGame() {
+    playerX = 0.0;
+    playerY = -0.75;
+    gameOver = false;
+    paused = false;
+    score = 0;
+    laneOffset = 0;
+    initEnemies();
+}
+
+void drawGameOverOverlay() {
+    glColor3d(1, 0.2, 0.2);
+    drawText(-0.3, 0.05, "GAME OVER");
+    glColor3d(1, 1, 1);
+    drawText(-0.4, -0.05, "Press Enter to Restart");
+}
+
+void keyboardNormal(unsigned char key, int x, int y) {
+    if (key == 13 && gameOver) { // Enter key
+        resetGame();
+    } else if (key == 27) { // Esc key
+        exit(0);
+    }
+
+    glutPostRedisplay();
+}
+
 void init() {
-    initGrass();
+    initScenery(currentScenery);
     initRoad();
     initEnemies();
 }
@@ -370,16 +733,20 @@ void display() {
     glClearColor(0.53, 0.81, 0.92, 1);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    drawGrass();
+    drawScenery();
     drawRoad();
     drawCar(playerX, playerY, 0.2, 0.3, 0.9);
     drawEnemies();
     drawScore();
 
+    if (gameOver) {
+        drawGameOverOverlay();
+    }
+
     glFlush();
 }
 
-void keyboard(int key, int x, int y) {
+void keyboardSpecial(int key, int x, int y) {
     if (key == GLUT_KEY_LEFT && playerX > -margin) {
         playerX -= margin / 10;
     } else if (key == GLUT_KEY_RIGHT && playerX < margin) {
@@ -394,10 +761,13 @@ void keyboard(int key, int x, int y) {
 }
 
 void update(int value) {
-    updateGrass();
-    updateRoad();
-    updateEnemies();
-    updateScore();
+    if (!gameOver) {
+        autoSwitchScenery();
+        updateScenery();
+        updateRoad();
+        updateEnemies();
+        updateScore();
+    }
 
     glutPostRedisplay();
     glutTimerFunc(30, update, 0);
@@ -416,7 +786,8 @@ int main(int argc, char **argv) {
     init();
 
     glutDisplayFunc(display);
-    glutSpecialFunc(keyboard);
+    glutSpecialFunc(keyboardSpecial);
+    glutKeyboardFunc(keyboardNormal);
     glutTimerFunc(30, update, 0);
 
     glutMainLoop();
