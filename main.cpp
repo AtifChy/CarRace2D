@@ -32,6 +32,11 @@ bool paused = false;
 // game settings
 bool isCollisionEnabled = true;
 
+// timing for start/finish lines
+int gameStartTimeMs = 0;
+const int START_LINE_SHOW_MS = 3000; // show start line for 3 seconds
+const int FINISH_LINE_AT_MS = 60000; // show finish line after 60 seconds
+
 // game variables
 double playerX = 0.0;
 double playerY = -0.75;
@@ -44,8 +49,8 @@ double margin = (roadWidth - carWidth) / 2;
 // TODO: Different type of Scenery, different type of road, different type of car
 
 enum class SceneryType { GRASS, DESERT };
-static SceneryType currentScenery = SceneryType::GRASS;
-static int scenerayIntervalMS = 5000; // 20 seconds
+static SceneryType currentScenery = SceneryType::DESERT;
+static int scenerayIntervalMS = 10000; // 20 seconds
 
 // #region Scenery
 
@@ -120,36 +125,43 @@ std::vector<Cactus> rightCt;
 
 void drawCactus(double x, double y, double size) {
     glColor3ub(34, 139, 34);
-    glBegin(GL_QUADS); // body
-    glVertex2d(x - 0.015 * size, y - 0.02);
-    glVertex2d(x + 0.015 * size, y - 0.02);
-    glVertex2d(x + 0.015 * size, y + 0.12 * size);
-    glVertex2d(x - 0.015 * size, y + 0.12 * size);
-    glEnd();
-    glBegin(GL_QUADS); // left arm
-    glVertex2d(x - 0.035 * size, y + 0.02 * size);
-    glVertex2d(x - 0.015 * size, y + 0.02 * size);
-    glVertex2d(x - 0.015 * size, y + 0.07 * size);
-    glVertex2d(x - 0.035 * size, y + 0.07 * size);
-    glEnd();
-    glBegin(GL_QUADS); // right arm
-    glVertex2d(x + 0.015 * size, y + 0.02 * size);
-    glVertex2d(x + 0.035 * size, y + 0.02 * size);
-    glVertex2d(x + 0.035 * size, y + 0.07 * size);
-    glVertex2d(x + 0.015 * size, y + 0.07 * size);
+
+    // Draw the cactus body as a circle to simulate a top-down view
+    glBegin(GL_POLYGON);
+    int numSegments = 20;
+    for (int i = 0; i < numSegments; i++) {
+        double theta = 2.0 * PI * double(i) / double(numSegments);
+        double dx = size * 0.05 * cos(theta);
+        double dy = size * 0.05 * sin(theta);
+        glVertex2d(x + dx, y + dy);
+    }
+    glEnd(); // Ensure the circle is completed before starting spikes
+
+    // Draw spikes
+    glBegin(GL_LINES);
+    for (int i = 0; i < numSegments; i++) {
+        double theta = 2.0 * PI * double(i) / double(numSegments);
+        double dx = size * 0.05 * cos(theta);
+        double dy = size * 0.05 * sin(theta);
+        double spikeLength = size * 0.02;
+        double spikeX = x + (size * 0.05 + spikeLength) * cos(theta);
+        double spikeY = y + (size * 0.05 + spikeLength) * sin(theta);
+        glVertex2d(x + dx, y + dy);
+        glVertex2d(spikeX, spikeY);
+    }
     glEnd();
 }
 
 void initDesert() {
     leftCt.clear();
     rightCt.clear();
-    int num = 20;
+    int num = 10;
     leftCt.reserve(num);
     rightCt.reserve(num);
     RandReal xLeft(-1.0, -roadWidth / 2 - 0.05);
     RandReal xRight(roadWidth / 2 + 0.05, 1.0);
     RandReal yDist(-1.0, 1.0);
-    RandReal sDist(0.7, 1.4);
+    RandReal sDist(0.3, 1.0);
     for (int i = 0; i < num; ++i) {
         leftCt.push_back({xLeft(gen), yDist(gen), sDist(gen)});
         rightCt.push_back({xRight(gen), yDist(gen), sDist(gen)});
@@ -239,6 +251,10 @@ void autoSwitchScenery() {
 // #region Road
 
 double laneOffset = 0.0;
+double roadScroll = 0.0;        // non-wrapping scroll accumulator for anchored features
+double startScroll0 = 0.0;      // roadScroll value at game start
+double finishScroll0 = 0.0;     // roadScroll value when finish line spawns
+bool finishLineSpawned = false; // indicates if finish line has been spawned
 std::vector<double> lanes;
 RandInt laneDist;
 
@@ -308,11 +324,52 @@ void drawRoad() {
         glVertex2d(-0.01, y + 0.1 + laneOffset);
         glEnd();
     }
+
+    // start/finish lines
+    int now = glutGet(GLUT_ELAPSED_TIME);
+    int elapsed = now - gameStartTimeMs;
+
+    auto drawCheckeredLine = [&](double baseY, double height, double cellW) {
+        double left = -roadWidth / 2.0;
+        int cells = static_cast<int>(roadWidth / cellW) + 1;
+        for (int i = 0; i < cells; ++i) {
+            if (i % 2 == 0)
+                glColor3d(1, 1, 1);
+            else
+                glColor3d(0, 0, 0);
+            double x0 = left + i * cellW;
+            double x1 = x0 + cellW;
+            glBegin(GL_QUADS);
+            glVertex2d(x0, baseY);
+            glVertex2d(x1, baseY);
+            glVertex2d(x1, baseY + height);
+            glVertex2d(x0, baseY + height);
+            glEnd();
+        }
+    };
+
+    // Show start line only for a short time at game start
+    if (elapsed <= START_LINE_SHOW_MS) {
+        double startY = -0.6 + (roadScroll - startScroll0);
+        drawCheckeredLine(startY, 0.06, 0.06);
+    }
+
+    // Show finish line after a certain amount of time
+    if (elapsed >= FINISH_LINE_AT_MS) {
+        if (!finishLineSpawned) {
+            finishLineSpawned = true;
+            finishScroll0 = roadScroll; // remember spawn scroll position
+        }
+        double finishY = 0.7 + (roadScroll - finishScroll0);
+        drawCheckeredLine(finishY, 0.06, 0.06);
+    }
 }
 
 void updateRoad() {
     laneOffset -= 0.02; // moves road lane markings down
     if (laneOffset < -0.4) laneOffset = 0.0;
+
+    roadScroll -= 0.02; // non-wrapping scroll for anchored features
 }
 
 // #endregion Road
@@ -348,7 +405,7 @@ void drawRoundedRect(double x, double y, double w, double h, double radius, int 
     glEnd();
 }
 
-void drawCar(double x, double y, double r, double g, double b, CarType type = CarType::SUV) {
+void drawCar(double x, double y, double r, double g, double b, CarType type = CarType::SEDAN) {
     double w = carWidth;
     double h = carHeight;
 
@@ -704,6 +761,14 @@ void resetGame() {
     score = 0;
     laneOffset = 0;
     initEnemies();
+    // Reset the start time so start/finish lines schedule restarts as well
+    gameStartTimeMs = glutGet(GLUT_ELAPSED_TIME);
+
+    // Reset non-wrapping scroll anchors so lines don't reappear on laneOffset wrap
+    roadScroll = 0.0;
+    startScroll0 = roadScroll;
+    finishLineSpawned = false;
+    finishScroll0 = 0.0;
 }
 
 void drawGameOverOverlay() {
@@ -727,6 +792,11 @@ void init() {
     initScenery(currentScenery);
     initRoad();
     initEnemies();
+    gameStartTimeMs = glutGet(GLUT_ELAPSED_TIME);
+    // Initialize non-wrapping scroll anchors so lines don't reappear on laneOffset wrap
+    roadScroll = 0.0;
+    startScroll0 = roadScroll;
+    finishLineSpawned = false;
 }
 
 void display() {
