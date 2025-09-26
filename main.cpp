@@ -730,7 +730,130 @@ void updateEnemies() {
     }
 }
 
-// #endregion Grass
+// #endregion Enemy
+
+// #region Bridge
+
+struct Bridge {
+    double y;            // Y position of the bridge
+    double height;       // Height of the bridge structure
+    double shadowOffset; // Offset for shadow effect
+    bool active;         // Whether bridge is active/visible
+};
+
+Bridge bridge;
+const double BRIDGE_HEIGHT = 0.6;
+const double BRIDGE_WIDTH = 2.0; // Spans full window width (left to right)
+int lastBridgeSpawnTime = 0;
+const int BRIDGE_SPAWN_INTERVAL_MS = 8000; // Spawn every 8 seconds
+
+void initBridge() {
+    // Initialize single bridge as inactive
+    bridge = {2.0, BRIDGE_HEIGHT, 0.02, false};
+    lastBridgeSpawnTime = glutGet(GLUT_ELAPSED_TIME);
+}
+
+void spawnBridge() {
+    // Only spawn if current bridge is inactive
+    if (!bridge.active) {
+        bridge.y = 1.5;                                             // Spawn above visible area
+        bridge.height = BRIDGE_HEIGHT + RandReal(-0.02, 0.02)(gen); // Slight height variation
+        bridge.shadowOffset = 0.02;
+        bridge.active = true;
+    }
+}
+
+void drawBridge(const Bridge &bridge) {
+    if (!bridge.active) return;
+
+    double bridgeY = bridge.y;
+    double bridgeLeft = -1.0; // Full screen width from left edge
+    double bridgeRight = 1.0; // Full screen width to right edge
+    double bridgeTop = bridgeY + bridge.height;
+    double bridgeBottom = bridgeY;
+
+    // Draw shadow first (darker, slightly offset)
+    glColor3d(0.1, 0.1, 0.1);
+    glBegin(GL_QUADS);
+    glVertex2d(bridgeLeft + bridge.shadowOffset, bridgeBottom - bridge.shadowOffset);
+    glVertex2d(bridgeRight + bridge.shadowOffset, bridgeBottom - bridge.shadowOffset);
+    glVertex2d(bridgeRight + bridge.shadowOffset, bridgeTop - bridge.shadowOffset);
+    glVertex2d(bridgeLeft + bridge.shadowOffset, bridgeTop - bridge.shadowOffset);
+    glEnd();
+
+    // Draw main bridge structure (concrete gray) - spans full screen width
+    glColor3d(0.3, 0.3, 0.3);
+    glBegin(GL_QUADS);
+    glVertex2d(bridgeLeft, bridgeBottom);
+    glVertex2d(bridgeRight, bridgeBottom);
+    glVertex2d(bridgeRight, bridgeTop);
+    glVertex2d(bridgeLeft, bridgeTop);
+    glEnd();
+
+    // Draw bridge railings on top and bottom edges
+    double railingHeight = 0.02;
+
+    // Top railing (front edge)
+    glColor3d(0.7, 0.7, 0.7);
+    glBegin(GL_QUADS);
+    glVertex2d(bridgeLeft, bridgeTop);
+    glVertex2d(bridgeRight, bridgeTop);
+    glVertex2d(bridgeRight, bridgeTop + railingHeight);
+    glVertex2d(bridgeLeft, bridgeTop + railingHeight);
+    glEnd();
+
+    // Bottom railing (back edge)
+    glBegin(GL_QUADS);
+    glVertex2d(bridgeLeft, bridgeBottom - railingHeight);
+    glVertex2d(bridgeRight, bridgeBottom - railingHeight);
+    glVertex2d(bridgeRight, bridgeBottom);
+    glVertex2d(bridgeLeft, bridgeBottom);
+    glEnd();
+
+    // Draw a single dashed lane marking at the center
+    glColor3d(1, 1, 0.8);
+    double markingHeight = 0.02; // thickness of the line
+    double dashLength = 0.1;     // length of each dash
+    double dashGap = 0.1;        // gap between dashes
+    double centerY = (bridgeTop + bridgeBottom) / 2.0;
+
+    for (double x = bridgeLeft; x < bridgeRight; x += dashLength + dashGap) {
+        glBegin(GL_QUADS);
+        glVertex2d(x, centerY - markingHeight / 2);
+        glVertex2d(x + dashLength, centerY - markingHeight / 2);
+        glVertex2d(x + dashLength, centerY + markingHeight / 2);
+        glVertex2d(x, centerY + markingHeight / 2);
+        glEnd();
+    }
+}
+
+void drawBridge() { drawBridge(bridge); }
+
+void updateBridges() {
+    if (gameFinished) return;
+
+    // Check if it's time to spawn a new bridge
+    int now = glutGet(GLUT_ELAPSED_TIME);
+    if (now - lastBridgeSpawnTime >= BRIDGE_SPAWN_INTERVAL_MS) {
+        // Random chance to spawn bridge (70% probability)
+        if (RandReal(0.0, 1.0)(gen) < 0.7) {
+            spawnBridge();
+        }
+        lastBridgeSpawnTime = now;
+    }
+
+    // Update single bridge
+    if (bridge.active) {
+        bridge.y -= 0.01; // Move bridge down with road
+
+        // Deactivate bridge when it goes off screen
+        if (bridge.y < -1.5) {
+            bridge.active = false;
+        }
+    }
+}
+
+// #endregion Bridge
 
 // #region Score
 
@@ -796,6 +919,7 @@ void init() {
     initScenery(currentScenery);
     initRoad();
     initEnemies();
+    initBridge();
     gameStartTimeMs = glutGet(GLUT_ELAPSED_TIME);
     // Initialize non-wrapping scroll anchors so lines don't reappear on laneOffset wrap
     roadScroll = 0.0;
@@ -811,6 +935,7 @@ void display() {
     drawRoad();
     drawCar(playerX, playerY, 0.2, 0.3, 0.9);
     drawEnemies();
+    drawBridge();
     drawScore();
 
     if (gameOver) {
@@ -839,11 +964,12 @@ void update(int value) {
         autoSwitchScenery();
         updateScenery();
         updateRoad();
+        updateBridges();
         updateEnemies();
         updateScore();
 
         // Check if the player has crossed the finish line
-        if (finishLineSpawned && roadScroll - finishScroll0 <= -1.8) {
+        if (finishLineSpawned && roadScroll - finishScroll0 <= -1.6) {
             std::cout << "Congratulations! You finished the race!\n";
             gameFinished = true;
         }
