@@ -845,7 +845,6 @@ void createExplosion(double x, double y) {
         p.vx = cos(angle) * speed;
         p.vy = sin(angle) * speed;
 
-        // Hot colors: red, orange, yellow
         if (i % 3 == 0) {
             p.r = 1.0;
             p.g = 0.0;
@@ -977,12 +976,29 @@ std::array<EnemyCar, MAX_ENEMIES> enemies;
 
 void initEnemies() {
     RandInt typeDist(0, 2);
+
+    using Color = std::array<double, 3>;
+    std::array<Color, 8> palette{{
+        {1.0, 1.0, 1.0},  // White
+        {0.2, 0.2, 0.2},  // Black
+        {0.6, 0.6, 0.6},  // Gray
+        {0.2, 0.2, 0.35}, // Dark Blue
+        {0.8, 0.0, 0.0},  // Red
+        {0.6, 0.0, 0.0},  // Maroon
+        {0.8, 0.6, 0.4},  // Beige
+        {0.0, 0.4, 0.2}   // Dark Green
+    }};
+
+    // Random index distribution for palette selection
+    RandInt colorDist(0, static_cast<int>(palette.size()) - 1);
+
     for (size_t i = 0; i < enemies.size(); ++i) {
         enemies[i].y = 1.2 + i * 0.5;
         enemies[i].x = lanes[laneDist(gen)];
-        enemies[i].r = colorDist(gen);
-        enemies[i].g = colorDist(gen);
-        enemies[i].b = colorDist(gen);
+        const auto &c = palette[colorDist(gen)];
+        enemies[i].r = c[0];
+        enemies[i].g = c[1];
+        enemies[i].b = c[2];
         enemies[i].type = static_cast<CarType>(typeDist(gen));
         enemies[i].active = true;
     }
@@ -1047,14 +1063,13 @@ void resetGame() {
 }
 
 void drawGameOverOverlay() {
-    glColor3d(1, 0.2, 0.2);
     drawText(-0.3, 0.05, "GAME OVER");
     glColor3d(1, 1, 1);
     drawText(-0.4, -0.05, "Press Enter to Restart");
 }
 
 void drawContratulationsOverlay() {
-    glColor3d(0.2, 1, 0.2);
+    glColor3d(1, 0.2, 0.2);
     drawText(-0.4, 0.05, "CONGRATULATIONS!");
     glColor3d(1, 1, 1);
     drawText(-0.5, -0.05, "Press Enter to Play Again");
@@ -1098,6 +1113,10 @@ void display() {
 
     if (gameOver) {
         drawGameOverOverlay();
+    }
+
+    if (gameFinished) {
+        drawContratulationsOverlay();
     }
 
     glFlush();
