@@ -28,13 +28,14 @@ RandReal colorDist(0.0, 1.0);
 // game state
 bool gameOver = false;
 bool paused = false;
+bool gameFinished = false; // Indicates if the game is finished
 
 // game settings
 bool isCollisionEnabled = true;
 
 // timing for start/finish lines
 int gameStartTimeMs = 0;
-const int START_LINE_SHOW_MS = 3000; // show start line for 3 seconds
+const int START_LINE_SHOW_MS = 2000; // show start line for 2 seconds
 const int FINISH_LINE_AT_MS = 60000; // show finish line after 60 seconds
 
 // game variables
@@ -126,28 +127,25 @@ std::vector<Cactus> rightCt;
 void drawCactus(double x, double y, double size) {
     glColor3ub(34, 139, 34);
 
-    // Draw the cactus body as a circle to simulate a top-down view
-    glBegin(GL_POLYGON);
-    int numSegments = 20;
-    for (int i = 0; i < numSegments; i++) {
-        double theta = 2.0 * PI * double(i) / double(numSegments);
-        double dx = size * 0.05 * cos(theta);
-        double dy = size * 0.05 * sin(theta);
+    // Draw circular base of the cactus
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex2d(x, y);               // Center point
+    for (int i = 0; i <= 12; ++i) { // 12 segments for smooth circle
+        double angle = 2.0 * PI * i / 12;
+        double dx = size * 0.3 * cos(angle);
+        double dy = size * 0.3 * sin(angle);
         glVertex2d(x + dx, y + dy);
     }
-    glEnd(); // Ensure the circle is completed before starting spikes
+    glEnd();
 
-    // Draw spikes
+    // Draw spikes (starburst effect)
     glBegin(GL_LINES);
-    for (int i = 0; i < numSegments; i++) {
-        double theta = 2.0 * PI * double(i) / double(numSegments);
-        double dx = size * 0.05 * cos(theta);
-        double dy = size * 0.05 * sin(theta);
-        double spikeLength = size * 0.02;
-        double spikeX = x + (size * 0.05 + spikeLength) * cos(theta);
-        double spikeY = y + (size * 0.05 + spikeLength) * sin(theta);
+    for (int i = 0; i < 12; ++i) {
+        double angle = 2.0 * PI * i / 12;
+        double dx = size * 0.35 * cos(angle);
+        double dy = size * 0.35 * sin(angle);
+        glVertex2d(x, y);
         glVertex2d(x + dx, y + dy);
-        glVertex2d(spikeX, spikeY);
     }
     glEnd();
 }
@@ -161,7 +159,7 @@ void initDesert() {
     RandReal xLeft(-1.0, -roadWidth / 2 - 0.05);
     RandReal xRight(roadWidth / 2 + 0.05, 1.0);
     RandReal yDist(-1.0, 1.0);
-    RandReal sDist(0.3, 1.0);
+    RandReal sDist(0.05, 0.2);
     for (int i = 0; i < num; ++i) {
         leftCt.push_back({xLeft(gen), yDist(gen), sDist(gen)});
         rightCt.push_back({xRight(gen), yDist(gen), sDist(gen)});
@@ -713,6 +711,8 @@ bool checkCollision(double x1, double y1, double x2, double y2) {
 }
 
 void updateEnemies() {
+    if (gameFinished) return; // Stop updating enemies once the game is finished
+
     for (auto &enemy : enemies) {
         if (!enemy.active) continue;
         enemy.y -= 0.01;
@@ -736,7 +736,11 @@ void updateEnemies() {
 
 int64_t score = 0;
 
-void updateScore() { score += 1; }
+void updateScore() {
+    if (!gameFinished) {
+        score += 1;
+    }
+}
 
 void drawText(double x, double y, const std::string &text) {
     glRasterPos2d(x, y);
@@ -831,12 +835,18 @@ void keyboardSpecial(int key, int x, int y) {
 }
 
 void update(int value) {
-    if (!gameOver) {
+    if (!gameOver && !gameFinished) {
         autoSwitchScenery();
         updateScenery();
         updateRoad();
         updateEnemies();
         updateScore();
+
+        // Check if the player has crossed the finish line
+        if (finishLineSpawned && roadScroll - finishScroll0 <= -1.8) {
+            std::cout << "Congratulations! You finished the race!\n";
+            gameFinished = true;
+        }
     }
 
     glutPostRedisplay();
