@@ -26,6 +26,8 @@ using RandReal = std::uniform_real_distribution<>;
 RandReal colorDist(0.0, 1.0);
 
 // game state
+int finishTimeMs = 0; // store finish time so timer can stop
+
 bool gameOver = false;
 bool paused = false;
 bool gameFinished = false; // Indicates if the game is finished
@@ -46,8 +48,6 @@ double roadWidth = 0.9;
 double carWidth = 0.16;
 double carHeight = 0.2;
 double margin = (roadWidth - carWidth) / 2;
-
-// TODO: Different type of Scenery, different type of road, different type of car
 
 enum class SceneryType { GRASS, DESERT };
 static SceneryType currentScenery = SceneryType::DESERT;
@@ -920,6 +920,46 @@ void drawExplosion() {
 
 // #endregion Explosion
 
+// #region Score
+
+int64_t score = 0;
+
+void updateScore() {
+    if (!gameFinished) {
+        score += 1;
+    }
+}
+
+void drawText(double x, double y, const std::string &text) {
+    glRasterPos2d(x, y);
+    for (char c : text) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+    }
+}
+
+void drawScore() {
+    glColor3d(1, 1, 1);
+    std::string scoreText = "Score:" + std::to_string(score);
+    drawText(-0.95, 0.9, scoreText);
+}
+
+void drawTimer() {
+    int now = glutGet(GLUT_ELAPSED_TIME);
+    int elapsedMs = now - gameStartTimeMs;
+    int totalSeconds = elapsedMs / 1000;
+    int minutes = totalSeconds / 60;
+    int seconds = totalSeconds % 60;
+
+    char buf[16];
+    std::snprintf(buf, sizeof(buf), "%02d:%02d", minutes, seconds);
+
+    glColor3d(1, 1, 1);
+    // place at top-right corner
+    drawText(0.8, 0.9, std::string("Time:") + buf);
+}
+
+// #endregion Score
+
 // #region Enemy
 
 struct EnemyCar {
@@ -953,7 +993,7 @@ void drawEnemies() {
 
 bool checkCollision(double x1, double y1, double x2, double y2) {
     if (!isCollisionEnabled) return false;
-    return (std::abs(x1 - x2) * 2 < (2 * carWidth) * 1.1) && (std::abs(y1 - y2) * 2 < (2 * carHeight) * 1.1);
+    return (std::abs(x1 - x2) * 2 < (2 * carWidth) * 1.05) && (std::abs(y1 - y2) * 2 < (2 * carHeight) * 1.05);
 }
 
 void updateEnemies() {
@@ -982,31 +1022,6 @@ void updateEnemies() {
 }
 
 // #endregion Enemy
-
-// #region Score
-
-int64_t score = 0;
-
-void updateScore() {
-    if (!gameFinished) {
-        score += 1;
-    }
-}
-
-void drawText(double x, double y, const std::string &text) {
-    glRasterPos2d(x, y);
-    for (char c : text) {
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
-    }
-}
-
-void drawScore() {
-    glColor3d(1, 1, 1);
-    std::string scoreText = "Score:" + std::to_string(score);
-    drawText(-0.95, 0.9, scoreText);
-}
-
-// #endregion Score
 
 void resetGame() {
     playerX = 0.0;
@@ -1067,6 +1082,7 @@ void display() {
     drawBridge();
     drawExplosion();
     drawScore();
+    drawTimer();
 
     if (gameOver) {
         drawGameOverOverlay();
