@@ -674,64 +674,6 @@ void drawCar(double x, double y, double r, double g, double b, CarType type = Ca
 
 // #endregion Car
 
-// #region Enemy
-
-struct EnemyCar {
-    double x, y;
-    CarType type;
-    double r, g, b;
-    bool active;
-};
-std::array<EnemyCar, MAX_ENEMIES> enemies;
-
-void initEnemies() {
-    RandInt typeDist(0, 2);
-    for (size_t i = 0; i < enemies.size(); ++i) {
-        enemies[i].y = 1.2 + i * 0.5;
-        enemies[i].x = lanes[laneDist(gen)];
-        enemies[i].r = colorDist(gen);
-        enemies[i].g = colorDist(gen);
-        enemies[i].b = colorDist(gen);
-        enemies[i].type = static_cast<CarType>(typeDist(gen));
-        enemies[i].active = true;
-    }
-}
-
-void drawEnemies() {
-    for (const auto &enemy : enemies) {
-        if (enemy.active) {
-            drawCar(enemy.x, enemy.y, enemy.r, enemy.g, enemy.b, enemy.type);
-        }
-    }
-}
-
-bool checkCollision(double x1, double y1, double x2, double y2) {
-    if (!isCollisionEnabled) return false;
-    return (std::abs(x1 - x2) * 2 < (2 * carWidth)) && (std::abs(y1 - y2) * 2 < (2 * carHeight));
-}
-
-void updateEnemies() {
-    if (gameFinished) return; // Stop updating enemies once the game is finished
-
-    for (auto &enemy : enemies) {
-        if (!enemy.active) continue;
-        enemy.y -= 0.01;
-        if (enemy.y < -1.4) {
-            enemy.y = 1.4;
-            enemy.x = lanes[laneDist(gen)];
-        }
-
-        if (checkCollision(playerX, playerY, enemy.x, enemy.y)) {
-            // reset game
-            std::cout << "Game Over!!\n";
-            gameOver = true;
-            break;
-        }
-    }
-}
-
-// #endregion Enemy
-
 // #region Bridge
 
 struct Bridge {
@@ -829,7 +771,7 @@ void drawBridge(const Bridge &bridge) {
 
 void drawBridge() { drawBridge(bridge); }
 
-void updateBridges() {
+void updateBridge() {
     if (gameFinished) return;
 
     // Check if it's time to spawn a new bridge
@@ -842,7 +784,6 @@ void updateBridges() {
         lastBridgeSpawnTime = now;
     }
 
-    // Update single bridge
     if (bridge.active) {
         bridge.y -= 0.01; // Move bridge down with road
 
@@ -854,6 +795,193 @@ void updateBridges() {
 }
 
 // #endregion Bridge
+
+// #region Explosion
+
+struct Particle {
+    double x, y;        // Position
+    double vx, vy;      // Velocity
+    double r, g, b;     // Color
+    double lifetime;    // Remaining lifetime
+    double maxLifetime; // Initial lifetime
+    bool active;
+};
+
+struct Explosion {
+    double x, y; // Explosion center
+    std::vector<Particle> particles;
+    bool active;
+    int maxParticles;
+};
+
+Explosion explosion;
+const int MAX_EXPLOSION_PARTICLES = 20;
+const double EXPLOSION_DURATION = 1.0; // seconds
+
+void initExplosion() {
+    explosion.active = false;
+    explosion.maxParticles = MAX_EXPLOSION_PARTICLES;
+    explosion.particles.reserve(MAX_EXPLOSION_PARTICLES);
+}
+
+void createExplosion(double x, double y) {
+    explosion.x = x;
+    explosion.y = y;
+    explosion.active = true;
+    explosion.particles.clear();
+
+    // Create particles
+    RandReal angleDist(0.0, 2.0 * PI);
+    RandReal speedDist(0.1, 0.3);
+    RandReal lifetimeDist(0.5, 1.0);
+
+    for (int i = 0; i < MAX_EXPLOSION_PARTICLES; ++i) {
+        Particle p;
+        double angle = angleDist(gen);
+        double speed = speedDist(gen);
+
+        p.x = x;
+        p.y = y;
+        p.vx = cos(angle) * speed;
+        p.vy = sin(angle) * speed;
+
+        // Hot colors: red, orange, yellow
+        if (i % 3 == 0) {
+            p.r = 1.0;
+            p.g = 0.0;
+            p.b = 0.0; // Red
+        } else if (i % 3 == 1) {
+            p.r = 1.0;
+            p.g = 0.5;
+            p.b = 0.0; // Orange
+        } else {
+            p.r = 1.0;
+            p.g = 1.0;
+            p.b = 0.0; // Yellow
+        }
+
+        p.lifetime = lifetimeDist(gen);
+        p.maxLifetime = p.lifetime;
+        p.active = true;
+
+        explosion.particles.push_back(p);
+    }
+}
+
+void updateExplosion() {
+    if (!explosion.active) return;
+
+    bool anyActive = false;
+    for (auto &p : explosion.particles) {
+        if (!p.active) continue;
+
+        // Update position
+        p.x += p.vx * 0.016; // Assuming ~60 FPS
+        p.y += p.vy * 0.016;
+
+        // Apply gravity
+        p.vy -= 0.5 * 0.016;
+
+        // Update lifetime
+        p.lifetime -= 0.016;
+        if (p.lifetime <= 0) {
+            p.active = false;
+        } else {
+            anyActive = true;
+        }
+    }
+
+    // Deactivate explosion when all particles are done
+    if (!anyActive) {
+        explosion.active = false;
+    }
+}
+
+void drawExplosion() {
+    if (!explosion.active) return;
+
+    for (const auto &p : explosion.particles) {
+        if (!p.active) continue;
+
+        // Fade out over time
+        double alpha = p.lifetime / p.maxLifetime;
+        glColor3d(p.r * alpha, p.g * alpha, p.b * alpha);
+
+        // Draw particle as small square
+        double size = 0.02 * alpha; // Shrink over time
+        glBegin(GL_QUADS);
+        glVertex2d(p.x - size, p.y - size);
+        glVertex2d(p.x + size, p.y - size);
+        glVertex2d(p.x + size, p.y + size);
+        glVertex2d(p.x - size, p.y + size);
+        glEnd();
+    }
+}
+
+// #endregion Explosion
+
+// #region Enemy
+
+struct EnemyCar {
+    double x, y;
+    CarType type;
+    double r, g, b;
+    bool active;
+};
+std::array<EnemyCar, MAX_ENEMIES> enemies;
+
+void initEnemies() {
+    RandInt typeDist(0, 2);
+    for (size_t i = 0; i < enemies.size(); ++i) {
+        enemies[i].y = 1.2 + i * 0.5;
+        enemies[i].x = lanes[laneDist(gen)];
+        enemies[i].r = colorDist(gen);
+        enemies[i].g = colorDist(gen);
+        enemies[i].b = colorDist(gen);
+        enemies[i].type = static_cast<CarType>(typeDist(gen));
+        enemies[i].active = true;
+    }
+}
+
+void drawEnemies() {
+    for (const auto &enemy : enemies) {
+        if (enemy.active) {
+            drawCar(enemy.x, enemy.y, enemy.r, enemy.g, enemy.b, enemy.type);
+        }
+    }
+}
+
+bool checkCollision(double x1, double y1, double x2, double y2) {
+    if (!isCollisionEnabled) return false;
+    return (std::abs(x1 - x2) * 2 < (2 * carWidth) * 1.1) && (std::abs(y1 - y2) * 2 < (2 * carHeight) * 1.1);
+}
+
+void updateEnemies() {
+    if (gameFinished) return; // Stop updating enemies once the game is finished
+
+    for (auto &enemy : enemies) {
+        if (!enemy.active) continue;
+        enemy.y -= 0.01;
+        if (enemy.y < -1.4) {
+            enemy.y = 1.4;
+            enemy.x = lanes[laneDist(gen)];
+        }
+
+        if (checkCollision(playerX, playerY, enemy.x, enemy.y)) {
+            // Create explosion at collision point
+            double explosionX = (playerX + enemy.x) / 2.0;
+            double explosionY = (playerY + enemy.y) / 2.0;
+            createExplosion(explosionX, explosionY);
+
+            // reset game
+            std::cout << "Game Over!!\n";
+            gameOver = true;
+            break;
+        }
+    }
+}
+
+// #endregion Enemy
 
 // #region Score
 
@@ -920,6 +1048,7 @@ void init() {
     initRoad();
     initEnemies();
     initBridge();
+    initExplosion();
     gameStartTimeMs = glutGet(GLUT_ELAPSED_TIME);
     // Initialize non-wrapping scroll anchors so lines don't reappear on laneOffset wrap
     roadScroll = 0.0;
@@ -936,6 +1065,7 @@ void display() {
     drawCar(playerX, playerY, 0.2, 0.3, 0.9);
     drawEnemies();
     drawBridge();
+    drawExplosion();
     drawScore();
 
     if (gameOver) {
@@ -964,7 +1094,7 @@ void update(int value) {
         autoSwitchScenery();
         updateScenery();
         updateRoad();
-        updateBridges();
+        updateBridge();
         updateEnemies();
         updateScore();
 
@@ -974,6 +1104,8 @@ void update(int value) {
             gameFinished = true;
         }
     }
+
+    updateExplosion();
 
     glutPostRedisplay();
     glutTimerFunc(30, update, 0);
