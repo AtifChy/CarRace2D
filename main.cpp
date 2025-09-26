@@ -38,7 +38,7 @@ bool isCollisionEnabled = true;
 // timing for start/finish lines
 int gameStartTimeMs = 0;
 const int START_LINE_SHOW_MS = 2000; // show start line for 2 seconds
-const int FINISH_LINE_AT_MS = 10000; // show finish line after 60 seconds
+const int FINISH_LINE_AT_MS = 60000; // show finish line after 60 seconds
 
 // game variables
 double playerX = 0.0;
