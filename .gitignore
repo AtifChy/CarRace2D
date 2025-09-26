@@ -45,4 +45,4 @@ out/
 .cache/
 compile_commands.json
 build/
-vcpkg-manifst-install.log
+vcpkg-manifest-install.log
