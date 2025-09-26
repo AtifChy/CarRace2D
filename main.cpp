@@ -950,6 +950,11 @@ void drawTimer() {
     int minutes = totalSeconds / 60;
     int seconds = totalSeconds % 60;
 
+    if (gameOver || gameFinished) {
+        minutes = 0;
+        seconds = 0;
+    }
+
     char buf[16];
     std::snprintf(buf, sizeof(buf), "%02d:%02d", minutes, seconds);
 
@@ -1046,6 +1051,13 @@ void drawGameOverOverlay() {
     drawText(-0.3, 0.05, "GAME OVER");
     glColor3d(1, 1, 1);
     drawText(-0.4, -0.05, "Press Enter to Restart");
+}
+
+void drawContratulationsOverlay() {
+    glColor3d(0.2, 1, 0.2);
+    drawText(-0.4, 0.05, "CONGRATULATIONS!");
+    glColor3d(1, 1, 1);
+    drawText(-0.5, -0.05, "Press Enter to Play Again");
 }
 
 void keyboardNormal(unsigned char key, int x, int y) {
