@@ -38,7 +38,7 @@ bool isCollisionEnabled = true;
 // timing for start/finish lines
 int gameStartTimeMs = 0;
 const int START_LINE_SHOW_MS = 2000; // show start line for 2 seconds
-const int FINISH_LINE_AT_MS = 60000; // show finish line after 60 seconds
+const int FINISH_LINE_AT_MS = 10000; // show finish line after 60 seconds
 
 // game variables
 double playerX = 0.0;
@@ -979,14 +979,14 @@ void initEnemies() {
 
     using Color = std::array<double, 3>;
     std::array<Color, 8> palette{{
-        {1.0, 1.0, 1.0},  // White
-        {0.2, 0.2, 0.2},  // Black
-        {0.6, 0.6, 0.6},  // Gray
-        {0.2, 0.2, 0.35}, // Dark Blue
-        {0.8, 0.0, 0.0},  // Red
-        {0.6, 0.0, 0.0},  // Maroon
-        {0.8, 0.6, 0.4},  // Beige
-        {0.0, 0.4, 0.2}   // Dark Green
+        {1.0, 1.0, 1.0},    // White
+        {0.4, 0.4, 0.4},    // Black
+        {0.75, 0.75, 0.75}, // Gray
+        {0.2, 0.2, 0.35},   // Dark Blue
+        {0.8, 0.0, 0.0},    // Red
+        {0.6, 0.0, 0.0},    // Maroon
+        {0.8, 0.6, 0.4},    // Beige
+        {0.0, 0.4, 0.2}     // Dark Green
     }};
 
     // Random index distribution for palette selection
