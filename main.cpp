@@ -136,22 +136,13 @@ struct WavePoint {
     double phase;
 };
 
-struct Boat {
-    double x, y;
-    double size;
-    double speed;
-    bool movingRight;
-};
-
 std::vector<WavePoint> leftWaves;
 std::vector<WavePoint> rightWaves;
-std::vector<Boat> riverBoats;
 double waveTime = 0.0;
 
 void initRiver() {
     leftWaves.clear();
     rightWaves.clear();
-    riverBoats.clear();
     waveTime = 0.0;
 
     // Initialize wave points for left side
@@ -182,32 +173,6 @@ void initRiver() {
             ampDist(gen),
             freqDist(gen),
             phaseDist(gen),
-        });
-    }
-
-    // Initialize boats
-    int numBoats = 2;
-    riverBoats.reserve(numBoats);
-    RandReal boatXLeft(-1.0, -roadWidth / 2 - 0.1);
-    RandReal boatXRight(roadWidth / 2 + 0.1, 1.0);
-    RandReal boatY(-1.0, 1.0);
-    RandReal boatSize(0.05, 0.12);
-    RandReal boatSpeed(0.001, 0.005);
-
-    for (int i = 0; i < numBoats / 2; ++i) {
-        riverBoats.push_back({
-            boatXLeft(gen),
-            boatY(gen),
-            boatSize(gen),
-            boatSpeed(gen),
-            RandReal(0.0, 1.0)(gen) > 0.5,
-        });
-        riverBoats.push_back({
-            boatXRight(gen),
-            boatY(gen),
-            boatSize(gen),
-            boatSpeed(gen),
-            RandReal(0.0, 1.0)(gen) > 0.5,
         });
     }
 }
@@ -253,27 +218,6 @@ void drawRiver() {
 
 void updateRiver() {
     waveTime += 0.05; // Increment wave animation time
-
-    // Update boat positions
-    for (auto &boat : riverBoats) {
-        if (boat.movingRight) {
-            boat.x += boat.speed;
-            if (boat.x > 1.0) {
-                boat.x = -1.0;
-            }
-        } else {
-            boat.x -= boat.speed;
-            if (boat.x < -1.0) {
-                boat.x = 1.0;
-            }
-        }
-
-        // Move boats down to simulate river flow
-        boat.y -= 0.005;
-        if (boat.y < -1.0) {
-            boat.y = 1.0;
-        }
-    }
 }
 
 void drawCactus(double x, double y, double size) {
@@ -1241,6 +1185,15 @@ void keyboardNormal(unsigned char key, int x, int y) {
         resetGame();
     } else if (key == 27) { // Esc key
         exit(0);
+    } else if (key == '1') {
+        currentScenery = SceneryType::GRASS;
+        initScenery(currentScenery);
+    } else if (key == '2') {
+        currentScenery = SceneryType::DESERT;
+        initScenery(currentScenery);
+    } else if (key == '3') {
+        currentScenery = SceneryType::RIVER;
+        initScenery(currentScenery);
     }
 
     glutPostRedisplay();
