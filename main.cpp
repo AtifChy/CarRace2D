@@ -49,7 +49,11 @@ double carWidth = 0.16;
 double carHeight = 0.2;
 double margin = (roadWidth - carWidth) / 2;
 
-enum class SceneryType { GRASS, DESERT };
+enum class SceneryType {
+    GRASS,
+    DESERT,
+    RIVER,
+};
 static SceneryType currentScenery = SceneryType::DESERT;
 static int scenerayIntervalMS = 10000; // 20 seconds
 
@@ -123,6 +127,154 @@ struct Cactus {
 };
 std::vector<Cactus> leftCt;
 std::vector<Cactus> rightCt;
+
+// ----- River -----
+struct WavePoint {
+    double x, y;
+    double amplitude;
+    double frequency;
+    double phase;
+};
+
+struct Boat {
+    double x, y;
+    double size;
+    double speed;
+    bool movingRight;
+};
+
+std::vector<WavePoint> leftWaves;
+std::vector<WavePoint> rightWaves;
+std::vector<Boat> riverBoats;
+double waveTime = 0.0;
+
+void initRiver() {
+    leftWaves.clear();
+    rightWaves.clear();
+    riverBoats.clear();
+    waveTime = 0.0;
+
+    // Initialize wave points for left side
+    int numWaves = 15;
+    leftWaves.reserve(numWaves);
+    RandReal xLeft(-1.0, -roadWidth / 2 - 0.05);
+    RandReal yDist(-1.0, 1.0);
+    RandReal ampDist(0.02, 0.05);
+    RandReal freqDist(1.0, 3.0);
+    RandReal phaseDist(0.0, 2.0 * PI);
+
+    for (int i = 0; i < numWaves; ++i) {
+        leftWaves.push_back({
+            xLeft(gen),
+            yDist(gen),
+            ampDist(gen),
+            freqDist(gen),
+            phaseDist(gen),
+        });
+    }
+
+    // Initialize wave points for right side
+    RandReal xRight(roadWidth / 2 + 0.05, 1.0);
+    for (int i = 0; i < numWaves; ++i) {
+        rightWaves.push_back({
+            xRight(gen),
+            yDist(gen),
+            ampDist(gen),
+            freqDist(gen),
+            phaseDist(gen),
+        });
+    }
+
+    // Initialize boats
+    int numBoats = 2;
+    riverBoats.reserve(numBoats);
+    RandReal boatXLeft(-1.0, -roadWidth / 2 - 0.1);
+    RandReal boatXRight(roadWidth / 2 + 0.1, 1.0);
+    RandReal boatY(-1.0, 1.0);
+    RandReal boatSize(0.05, 0.12);
+    RandReal boatSpeed(0.001, 0.005);
+
+    for (int i = 0; i < numBoats / 2; ++i) {
+        riverBoats.push_back({
+            boatXLeft(gen),
+            boatY(gen),
+            boatSize(gen),
+            boatSpeed(gen),
+            RandReal(0.0, 1.0)(gen) > 0.5,
+        });
+        riverBoats.push_back({
+            boatXRight(gen),
+            boatY(gen),
+            boatSize(gen),
+            boatSpeed(gen),
+            RandReal(0.0, 1.0)(gen) > 0.5,
+        });
+    }
+}
+
+void drawRiver() {
+    // Draw water background (deep blue)
+    glColor3ub(30, 144, 255);
+
+    // Left water area
+    glBegin(GL_QUADS);
+    glVertex2d(-1.0, -1.0);
+    glVertex2d(-roadWidth / 2, -1.0);
+    glVertex2d(-roadWidth / 2, 1.0);
+    glVertex2d(-1.0, 1.0);
+    glEnd();
+
+    // Right water area
+    glBegin(GL_QUADS);
+    glVertex2d(roadWidth / 2, -1.0);
+    glVertex2d(1.0, -1.0);
+    glVertex2d(1.0, 1.0);
+    glVertex2d(roadWidth / 2, 1.0);
+    glEnd();
+
+    // Draw animated waves
+    glColor3ub(135, 206, 250); // Light blue for waves
+    for (const auto &wave : leftWaves) {
+        double waveY = wave.y + wave.amplitude * sin(wave.frequency * waveTime + wave.phase);
+        glBegin(GL_LINES);
+        glVertex2d(wave.x - 0.05, waveY);
+        glVertex2d(wave.x + 0.05, waveY);
+        glEnd();
+    }
+
+    for (const auto &wave : rightWaves) {
+        double waveY = wave.y + wave.amplitude * sin(wave.frequency * waveTime + wave.phase);
+        glBegin(GL_LINES);
+        glVertex2d(wave.x - 0.05, waveY);
+        glVertex2d(wave.x + 0.05, waveY);
+        glEnd();
+    }
+}
+
+void updateRiver() {
+    waveTime += 0.05; // Increment wave animation time
+
+    // Update boat positions
+    for (auto &boat : riverBoats) {
+        if (boat.movingRight) {
+            boat.x += boat.speed;
+            if (boat.x > 1.0) {
+                boat.x = -1.0;
+            }
+        } else {
+            boat.x -= boat.speed;
+            if (boat.x < -1.0) {
+                boat.x = 1.0;
+            }
+        }
+
+        // Move boats down to simulate river flow
+        boat.y -= 0.005;
+        if (boat.y < -1.0) {
+            boat.y = 1.0;
+        }
+    }
+}
 
 void drawCactus(double x, double y, double size) {
     glColor3ub(34, 139, 34);
@@ -208,6 +360,9 @@ void initScenery(SceneryType t) {
     case SceneryType::DESERT:
         initDesert();
         break;
+    case SceneryType::RIVER:
+        initRiver();
+        break;
     }
 }
 
@@ -218,6 +373,9 @@ void drawScenery() {
         break;
     case SceneryType::DESERT:
         drawDesert();
+        break;
+    case SceneryType::RIVER:
+        drawRiver();
         break;
     }
 }
@@ -230,6 +388,9 @@ void updateScenery() {
     case SceneryType::DESERT:
         updateDesert();
         break;
+    case SceneryType::RIVER:
+        updateRiver();
+        break;
     }
 }
 
@@ -238,7 +399,7 @@ void autoSwitchScenery() {
     int now = glutGet(GLUT_ELAPSED_TIME);
     if (now - lastScenerySwitchTime >= scenerayIntervalMS) {
         lastScenerySwitchTime = now;
-        int next = (static_cast<int>(currentScenery) + 1) % 2;
+        int next = (static_cast<int>(currentScenery) + 1) % 3;
         currentScenery = static_cast<SceneryType>(next);
         initScenery(currentScenery);
     }
@@ -946,12 +1107,12 @@ void drawTimer() {
     int now = glutGet(GLUT_ELAPSED_TIME);
     int elapsedMs = now - gameStartTimeMs;
     int totalSeconds = elapsedMs / 1000;
-    int minutes = totalSeconds / 60;
-    int seconds = totalSeconds % 60;
+    int minutes;
+    int seconds;
 
-    if (gameOver || gameFinished) {
-        minutes = 0;
-        seconds = 0;
+    if (!gameOver || !gameFinished) {
+        minutes = totalSeconds / 60;
+        seconds = totalSeconds % 60;
     }
 
     char buf[16];
@@ -1014,7 +1175,7 @@ void drawEnemies() {
 
 bool checkCollision(double x1, double y1, double x2, double y2) {
     if (!isCollisionEnabled) return false;
-    return (std::abs(x1 - x2) * 2 < (2 * carWidth) * 1.05) && (std::abs(y1 - y2) * 2 < (2 * carHeight) * 1.05);
+    return (std::abs(x1 - x2) * 2 < (2 * carWidth) * 1.06) && (std::abs(y1 - y2) * 2 < (2 * carHeight) * 1.06);
 }
 
 void updateEnemies() {
